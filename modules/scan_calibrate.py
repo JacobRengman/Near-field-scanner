@@ -21,13 +21,15 @@
 import tkinter as tk
 from tkinter import filedialog, ttk
 import os
+import sys
 import matplotlib.image as img
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg 
 import math
 import numpy as np
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import scan_config as cfg # To hold global variables
-import xy_scanner as scan
+from hardware import xy_scanner as scan
 
 # Global variables
 jog_step = 0
@@ -52,25 +54,24 @@ rotate_icon = None
 color_2 = ['#FF9080', '#FFE280', '#80FF90', '#A080FF']
 color_1 = ['#FF1000', '#FFA810', '#00FF10', '#2000FF']
 
-# TODO: Use pathlib?
-
 def open_imagefile():
     global img_xmin, img_ymin, img_xmax, img_ymax
     if cfg.image_path and cfg.image_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
         try:
-            cfg.image = img.imread(cfg.image_path)
+            cfg.image = img.imread(os.path.join('background_images', cfg.image_path))
             img_xmin, img_ymin = 0, 0 
             img_xmax = cfg.image.shape[1] # image.shape[1} is x-size shape of image (width)
             img_ymax = cfg.image.shape[0] # image.shape[0] is y-size shape of image (height)
             refresh_window(root_frame)
             return True
         except Exception as e:
-            print(f"Error loading image {cfg.image_path}: {e}")
+            print(f"Error loading image {os.path.join('background_images', cfg.image_path)}: {e}")
             cfg.image = []
             img_xmin, img_ymin, img_xmax, img_ymax = 0, 0, 0, 0
             refresh_window(root_frame)
             return False
     else:
+        print(f"open_imagefile: Failed {cfg.image_path}")
         cfg.image = []
         img_xmin, img_ymin, img_xmax, img_ymax = 0, 0, 0, 0
         refresh_window(root_frame)
@@ -385,7 +386,7 @@ def save_calibration():
     if image_rotation in (90, 180, 270) and len(cfg.image) > 0:
         base_name, _ = os.path.splitext(cfg.image_path)
         new_image_path = f"{base_name}_{image_rotation}.png"
-        img.imsave(new_image_path, cfg.image) # Save rotated array as PNG file
+        img.imsave(os.path.join('background_images', new_image_path), cfg.image) # Save rotated array as PNG file
         cfg.image_path = new_image_path # Update global path
         image_rotation = 0 # reset rotation tracker
         if open_button:
@@ -503,7 +504,7 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
 
     # Lazy-load rotate_icon bound to main root window
     if rotate_icon is None:
-        rotate_icon = tk.PhotoImage(file="rotate_image_20x20.png")
+        rotate_icon = tk.PhotoImage(file=os.path.join('assets', 'rotate_image_20x20.png'))
 
     # Create rotation button
     rotate_button = tk.Button(file_frame, image=rotate_icon, command=rotate_image_ccw)

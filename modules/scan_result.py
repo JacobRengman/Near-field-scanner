@@ -20,6 +20,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import os
+import sys
 try:
     import matplotlib.image as img
 except:
@@ -33,11 +34,11 @@ import math
 import numpy as np
 import json
 from PIL import ImageGrab
-import json
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import scan_config as cfg # To hold application global variables
-import xy_scanner as scan
+from hardware import xy_scanner as scan
 if not(cfg.sa_model == ""):
-    sa = importlib.import_module(cfg.sa_model, package=None) # "HP_8591"
+    sa = importlib.import_module(f"hardware.{cfg.sa_model}")
 
 # Global variables for this module
 x_mkr = [0.0]*4               # Spatial markers
@@ -80,11 +81,11 @@ def open_datafile1(filename):
     global zoom_xmin, zoom_ymin, zoom_xmax, zoom_ymax, img_xmin, img_ymin, img_xmax, img_ymax
     global target_xmin, target_ymin, target_xmax, target_ymax, from_freq, to_freq, pan_active
 
-    if not filename or not os.path.exists(filename):
+    if not filename or not os.path.exists(os.path.join('results', filename)):
+        print(f"result open_datafile1 wrong filename {os.path.join('results', filename)}")
         return False
-
     try:
-        with open(filename, 'r') as f:
+        with open(os.path.join('results', filename), 'r') as f:
             data = json.load(f)
     except Exception as e:
         print(f"Error reading file {filename}: {e}")
@@ -130,10 +131,10 @@ def open_datafile1(filename):
     spectrum_min = np.floor(min(spectrum))
     from_freq, to_freq = 0, len(cfg.freq_lst) - 1
 
-    if not os.path.exists(cfg.image_path):
-        print(f"Background image not found: {cfg.image_path}")
+    if not os.path.exists(os.path.join('background_images', cfg.image_path)):
+        print(f"Background image not found: {os.path.join('background_images', cfg.image_path)}")
         return False
-    cfg.image = img.imread(cfg.image_path)
+    cfg.image = img.imread(os.path.join('background_images', cfg.image_path))
     # Calculate image boundaries
     img_xscale = (cfg.x_img[0] - cfg.x_img[1]) / (cfg.x_scan[0] - cfg.x_scan[1])
     img_yscale = (cfg.y_img[0] - cfg.y_img[1]) / (cfg.y_scan[0] - cfg.y_scan[1])
@@ -160,7 +161,7 @@ def open_datafile2(filename):
         cfg.S = []
         return False
     try:
-        with open(filename, 'r') as f:
+        with open(os.path.join('results', filename), 'r') as f:
             data2 = json.load(f)
     except Exception as e:
         print(f"Error reading file2 {filename}: {e}")
@@ -786,7 +787,7 @@ def scan_result(frame):
         if not cfg.scanfile1_path or len(cfg.freq_lst) == 0:
             return
         csv_filename = cfg.scanfile1_path[:-4] + "_spectrum.csv"
-        with open(csv_filename, "w") as f:
+        with open(os.path.join('results', csv_filename), 'w') as f:
             f.write("Frequency;Amplitude\n")
             for i in range(len(cfg.freq_lst)):
                 f.write(f"{cfg.freq_lst[i]};{spectrum[i]}\n")
@@ -807,13 +808,14 @@ def scan_result(frame):
         h = root_frame.winfo_height()
         # Grab pixel region and save
         img_crop = ImageGrab.grab(bbox=(x, y, x + w, y + h))
-        img_crop.save(png_filename)
+        img_crop.save(os.path.join('results', png_filename))
         save_img_window = tk.Toplevel(root_frame, height=100, width=150)
         save_img_window.title("Screenshoot saved")
-        tk.Label(save_img_window, text=f"Full window image saved as:\n{os.path.basename(png_filename)}").pack(padx=10, pady=10)
+        save_img_lbl = tk.Label(save_img_window, text=f"Full window image saved as:\n{os.path.basename(os.path.join('results', png_filename))}")
+        save_img_lbl.pack(padx=10, pady=10)
         tk.Button(save_img_window, text=" EXIT ", command=save_img_window.destroy).pack(pady=5)
 
-    # Debuging buttons
+    # Debuging buttons TODO remove
     # debug_frame = tk.Frame(left_frame, width=200, height=100)
     # debug_frame.grid(row=20, column=0, padx=2, pady=5, sticky='nw')
     # debug1_widget = tk.Button(debug_frame, text="Adjust aspect", command=adjust_aspect)

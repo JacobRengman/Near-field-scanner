@@ -14,13 +14,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # This is the near field scanner application interactive help module.
-# Help can be involed at anytime by pressing F1. The help shown will
+# Help can be invoked at anytime by pressing F1. The help shown will
 # depend on which Notebook tab that is active. Help is not available
 # when modules are executed in stand alone mode.
 
 import os
+import sys
 import tkinter as tk
 from tkinter import ttk
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Global reference to prevent duplicate windows and image garbage collection
 help_win = None
@@ -84,9 +86,9 @@ def open_help_window(parent, tab_index):
 
 def insert_image(text_widget, image_path, caption=""):
     """Safely embed an image with an optional caption inside the Text widget."""
-    if os.path.exists(image_path):
+    if os.path.exists(os.path.join('assets', image_path)):
         try:
-            img = tk.PhotoImage(file=image_path)
+            img = tk.PhotoImage(file=os.path.join('assets', image_path))
             image_refs.append(img)  # Retain reference against garbage collection
             text_widget.image_create(tk.END, image=img)
             text_widget.insert(tk.END, "\n")
@@ -95,8 +97,7 @@ def insert_image(text_widget, image_path, caption=""):
             else:
                 text_widget.insert(tk.END, "\n")
         except Exception as e:
-            print(f"Help image load error ({image_path}): {e}")
-
+            print(f"Help image load error ({os.path.join('assets', image_path)}): {e}")
 
 def populate_help_content(text, tab_index):
     """Insert context help organized top-to-bottom following GUI layout."""
@@ -111,7 +112,7 @@ def populate_help_content(text, tab_index):
         )
 
         # IMAGE PLACEHOLDER: Full Setup Tab Overview TODO add image
-        # insert_image(text, "images/help_setup_overview.png", "Scan Setup Interface")
+        # insert_image(text, "help_setup_overview.png", "Scan Setup Interface")
 
         text.insert(tk.END, "1. Spectrum Analyzer Settings\n", "section")
         text.insert(
@@ -158,7 +159,7 @@ def populate_help_content(text, tab_index):
         )
 
         # IMAGE PLACEHOLDER: Calibration Tab Layout TODO add image
-        # insert_image(text, "images/help_calibrate_overview.png", "Calibration Control Panel")
+        # insert_image(text, "help_calibrate_overview.png", "Calibration Control Panel")
 
         text.insert(tk.END, "A. File & Orientation Frame\n", "subsection")
         text.insert(
@@ -211,7 +212,7 @@ def populate_help_content(text, tab_index):
         )
 
         # IMAGE PLACEHOLDER: Interactive Canvas Controls TODO add image
-        # insert_image(text, "images/help_calibrate_canvas.png", "Canvas Marker Placement")
+        # insert_image(text, "help_calibrate_canvas.png", "Canvas Marker Placement")
 
         text.insert(tk.END, "Right Panel: Interactive Plot Controls\n", "section")
         text.insert(
@@ -232,7 +233,7 @@ def populate_help_content(text, tab_index):
         )
 
         # IMAGE PLACEHOLDER: Execute Tab TODO add image
-        # insert_image(text, "images/help_execute_overview.png", "Scan Execution Setup")
+        # insert_image(text, "help_execute_overview.png", "Scan Execution Setup")
 
         text.insert(tk.END, "1. File & Area Setup\n", "section")
         text.insert(
@@ -293,7 +294,7 @@ def populate_help_content(text, tab_index):
         )
 
         # IMAGE PLACEHOLDER: Result Tab Overview TODO add image
-        # insert_image(text, "images/help_result_overview.png", "Result Visualization Window")
+        # insert_image(text, "help_result_overview.png", "Result Visualization Window")
 
         text.insert(tk.END, "1. Dataset Loading\n", "section")
         text.insert(

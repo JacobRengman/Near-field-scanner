@@ -31,11 +31,13 @@ from datetime import datetime
 import pyvisa
 import json
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import scan_config as cfg # To hold global variables
-from scan_calibrate import save_calibration
+from modules.scan_calibrate import save_calibration
 if not(cfg.sa_model == ""):
-    sa = importlib.import_module(cfg.sa_model, package=None) # "HP_8591"
-import xy_scanner as scan
+    sa = importlib.import_module(f"hardware.{cfg.sa_model}")
+from hardware import xy_scanner as scan
 
 # Global variables
 stop, done_points, start_time = 0, 0, 0
@@ -54,21 +56,22 @@ mouse_motion_cid, mouse_click_cid = None, None
 
 def open_imagefile():
     global img_xmin, img_ymin, img_xmax, img_ymax
-    if cfg.image_path and os.path.exists(cfg.image_path):
+    if cfg.image_path and os.path.exists(os.path.join('background_images', cfg.image_path)):
         try:
-            cfg.image = img.imread(cfg.image_path)
+            cfg.image = img.imread(os.path.join('background_images', cfg.image_path))
             img_xmin, img_ymin = 0, 0 
             img_xmax = cfg.image.shape[1] # image.shape[1} is x-size shape of image (width)
             img_ymax = cfg.image.shape[0] # image.shape[0] is y-size shape of image (height)
             refresh_window(root_frame)
             return True
         except Exception as e:
-            print(f"Error loading image {cfg.image_path}: {e}")
+            print(f"Error loading image {os.path.join('background_images', cfg.image_path)}: {e}")
             cfg.image = []
             img_xmin, img_ymin, img_xmax, img_ymax = 0, 0, 0, 0
             refresh_window(root_frame)
             return False
     else:
+        print(f"open_imagefile Fail: {os.path.join('background_images', cfg.image_path)}")
         cfg.image = []
         img_xmin, img_ymin, img_xmax, img_ymax = 0, 0, 0, 0
         refresh_window(root_frame)

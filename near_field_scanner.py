@@ -18,21 +18,22 @@
 
 print("Starting Near Filed Scanner Application...") # Early printout
 
+import os
 import tkinter as tk
 from tkinter import ttk
-import scan_setup as setup
-import scan_calibrate as calibrate
-import scan_execute as execute
-import scan_result as result
 import scan_config as cfg
-import scan_help as help_manager
+from modules import scan_setup as setup
+from modules import scan_calibrate as calibrate
+from modules import scan_execute as execute
+from modules import scan_result as result
+from modules import scan_help as help_manager
 from PIL import Image, ImageTk
 
-cfg.app_version = "v1.0.2" # Please increment version before a pull request
+cfg.app_version = "v1.1.0" # Please increment version before a pull request
 
 win = tk.Tk()
 win.geometry("840x780")
-win.iconbitmap('Test-icon.ico') # TODO Make a scanner logotype
+win.iconbitmap(os.path.join('assets', 'Test-icon.ico')) # TODO Make a scanner logotype
 win.title("Near field scanner application " + cfg.app_version)
 win.rowconfigure(0, weight=1)
 win.columnconfigure(0, weight=1)
@@ -82,10 +83,10 @@ notebook.bind("<<NotebookTabChanged>>", refresh_tabs)
 win.bind_all("<F1>", handle_f1)
 
 ph = []
-ph.append(tk.PhotoImage(file='setup_38x37.png'))
-ph.append(tk.PhotoImage(file='calibrate_38x38.png'))
-ph.append(tk.PhotoImage(file='Execute_38x38.png'))
-ph.append(tk.PhotoImage(file='Result_38x38.png'))
+ph.append(tk.PhotoImage(file=os.path.join('assets', 'setup_38x37.png')))
+ph.append(tk.PhotoImage(file=os.path.join('assets', 'calibrate_38x38.png')))
+ph.append(tk.PhotoImage(file=os.path.join('assets', 'Execute_38x38.png')))
+ph.append(tk.PhotoImage(file=os.path.join('assets', 'Result_38x38.png')))
 for a in range(len(tab_name_lst)):
     notebook.add(tab_lst[a], text=tab_name_lst[a], image=ph[a], compound=tk.LEFT)
 notebook.grid(row=0, column=0, sticky='nsew')

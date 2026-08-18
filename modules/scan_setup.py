@@ -18,7 +18,6 @@
 # It can also be used to set up a new project name and or copy the setup
 # from an old near field scanning.
 
-from tkinter import *
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
@@ -31,18 +30,18 @@ try:
 except:
     print("Please install pyserial with the command \'pip install pyserial\'")
     exit(0)
-import xy_scanner as scan
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from hardware import xy_scanner as scan
 try:
     import pyvisa
 except:
     print("Please install pyvisa via the \'pip install pyvisa\' command.")
     exit(0)
 import importlib
-import sys
 import platform
 import scan_config as cfg
-from scan_result import open_datafile1 as open_datafile1
-from scan_calibrate import save_calibration as save_calibration
+from modules.scan_result import open_datafile1 as open_datafile1
+from modules.scan_calibrate import save_calibration as save_calibration
 proj_name = "testet"
 
 def update_fields_from_globals(): # Update all the widget fields (Entry's) from global varaibles
@@ -80,13 +79,13 @@ def scan_setup(root_frame):
                 sa_test_button.configure(bg='orange')
                 errorwindow = Toplevel(root_frame)
                 errorwindow.title("Error")
-                Label(errorwindow, text="Pyvisa failed. Most likely due to some error in USB-driver.").pack()
-                Label(errorwindow, text="Please install Keysight IO onnection Expert or equivalent.").pack()
-                Label(errorwindow, text="Application will continue without Pyvisa / spectrum analyzer.").pack()
-                Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack()
+                tk.Label(errorwindow, text="Pyvisa failed. Most likely due to some error in USB-driver.").pack()
+                tk.Label(errorwindow, text="Please install Keysight IO onnection Expert or equivalent.").pack()
+                tk.Label(errorwindow, text="Application will continue without Pyvisa / spectrum analyzer.").pack()
+                tk.Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack()
                 return False # Pyvisa is not working properly
             if not(cfg.sa_model == ""):
-                sa = importlib.import_module(cfg.sa_model, package=None) # "HP_8591"
+                sa = importlib.import_module(f"hardware.{cfg.sa_model}") # , package=None) # "HP_8591"
             cfg.specanalyzer = sa.init(rm, cfg.sa_address) # Spectrum Analyzer connection
         if cfg.specanalyzer != 0:
             print("Spectrum analyzer connected")
@@ -100,7 +99,7 @@ def scan_setup(root_frame):
     # Spectrum analyzer model
     samodel_label = tk.Label(left_frame, text="Spectrum analyzer model:", width=20, anchor="w")
     samodel_label.grid(row=0, column=0, padx=5, pady=py, sticky='w')
-    samodel_sv = StringVar(root_frame)
+    samodel_sv = tk.StringVar(root_frame)
     samodel_entry = tk.Entry(left_frame, textvariable=samodel_sv, width=46, font=("Calibri",12), state='disabled') # only for display
     samodel_entry.grid(row=0, column=1, padx=5, pady=py, sticky='w')
     samodel_sv.set(cfg.sa_model)
@@ -108,10 +107,10 @@ def scan_setup(root_frame):
     sa_load_button = tk.Button(left_frame, text="Open", width=5) # , command=select_sa_model) # TODO add command backend to load spectrum analyzer model selection list
     sa_load_button.grid(row=0, column=2, padx=5, pady=py, sticky='w')
 
-    # Spectrum analyzer VISA address
+    # Spectrum analyzer VISA address or COM port if support for TinySA is added for instance
     visaaddr_label = tk.Label(left_frame, text="Spectrum analyzer address:", width=20, anchor="w")
     visaaddr_label.grid(row=1, column=0, padx=5, pady=py, sticky='w')
-    visaaddr_sv = StringVar(root_frame)
+    visaaddr_sv = tk.StringVar(root_frame)
 
     visaaddr_combo = ttk.Combobox(left_frame, textvariable=visaaddr_sv, width=44, font=("Calibri",12), values=[])
     visaaddr_combo.grid(row=1, column=1, padx=5, pady=py, sticky='w')
@@ -156,7 +155,7 @@ def scan_setup(root_frame):
     # Com port address to scanner table
     scanaddr_label = tk.Label(left_frame, text="Scanner COM port:", width=20, anchor="w")
     scanaddr_label.grid(row=2, column=0, padx=5, pady=py, sticky='w')
-    scanport_sv = StringVar(root_frame)
+    scanport_sv = tk.StringVar(root_frame)
     scanaddr_combo = ttk.Combobox(left_frame, textvariable=scanport_sv, width=44, font=("Calibri",12), values=[])
     scanaddr_combo.grid(row=2, column=1, padx=5, pady=py, sticky='w')
     scanport_sv.set(cfg.scanner_comport)
@@ -209,12 +208,12 @@ def scan_setup(root_frame):
 
     select_proj_label = tk.Label(left_frame, text="Copy setup from project file:", width=20, anchor="w")
     select_proj_label.grid(row=3, column=0, padx=5, pady=py, sticky='w')
-    proj_name_sv = StringVar(root_frame)
-    selected_proj_label = Label(left_frame, textvariable=proj_name_sv, width=46, font=("Calibri",12), bg='white', anchor="w")
+    proj_name_sv = tk.StringVar(root_frame)
+    selected_proj_label = tk.Label(left_frame, textvariable=proj_name_sv, width=46, font=("Calibri",12), bg='white', anchor="w")
     selected_proj_label.grid(row=3, column=1, padx=2, sticky='w')
     scanfile1_name = os.path.basename(cfg.scanfile1_path)
     proj_name_sv.set(scanfile1_name)
-    open_proj_button = Button(left_frame, text="Open", width=5, command=open_project_dialog)
+    open_proj_button = tk.Button(left_frame, text="Open", width=5, command=open_project_dialog)
     open_proj_button.grid(row=3, column=2, padx=0, pady=0)
 
     # Create a new project
@@ -224,9 +223,9 @@ def scan_setup(root_frame):
             print("The newproj_sv project name isnt valid!")
             errorwindow = Toplevel(root_frame)
             errorwindow.title("Error")
-            Label(errorwindow, text="The newproj_sv project name isnt valid!").pack()
-            Label(errorwindow, text="newproj_sv = " + newproj_sv.get()).pack()
-            Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack()
+            tk.Label(errorwindow, text="The newproj_sv project name isnt valid!").pack()
+            tk.Label(errorwindow, text="newproj_sv = " + newproj_sv.get()).pack()
+            tk.Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack()
             return False # Non valid project name
         # Return all global variables to their default values and then save them
         cfg.proj_name_path = newproj_sv.get()
@@ -247,7 +246,7 @@ def scan_setup(root_frame):
     # New Project name
     newproj_label = tk.Label(left_frame, text="New project name:", width=20, anchor="w")
     newproj_label.grid(row=4, column=0, padx=5, pady=py, sticky='w')
-    newproj_sv = StringVar(root_frame)
+    newproj_sv = tk.StringVar(root_frame)
     scanaddr_entry = tk.Entry(left_frame, textvariable=newproj_sv, width=46, font=("Calibri",12))
     scanaddr_entry.grid(row=4, column=1, padx=5, pady=py, sticky='w')
     newproj_sv.set(proj_name)
@@ -288,7 +287,7 @@ def scan_setup(root_frame):
     # Test version of Python (Python 3.7 is known working under Windows, higher than 3.7 might give issues with PyVisa)
     pversiontst_label = tk.Label(left_frame, text="Installed version of Python", width=25, anchor="w")
     pversiontst_label.grid(row=6, column=0, columnspan=2, padx=5, pady=py, sticky='w')
-    pversion_sv = StringVar(root_frame)
+    pversion_sv = tk.StringVar(root_frame)
     pversion_entry = tk.Entry(left_frame, textvariable=pversion_sv, width=46, font=("Calibri",12), state='disabled') # only for display
     pversion_entry.grid(row=6, column=1, padx=5, pady=py, sticky='w')
     pversion_sv.set("Python "+str(sys.version_info[0])+"."+str(sys.version_info[1])+"."+str(sys.version_info[2]))
@@ -299,9 +298,9 @@ def scan_setup(root_frame):
     def show_credits_window():
         creditswindow = Toplevel(root_frame)
         creditswindow.title("Credits")
-        credits0_label = Label(creditswindow, text="The following persons and organisations have contributed")
+        credits0_label = tk.Label(creditswindow, text="The following persons and organisations have contributed")
         credits0_label.grid(row=0, column=0, padx=5, pady=5, sticky='n')
-        credits1_label = Label(creditswindow, text="to the development of this software.")
+        credits1_label = tk.Label(creditswindow, text="to the development of this software.")
         credits1_label.grid(row=1, column=0, padx=5, pady=5, sticky='n')
         credits_text = Text(creditswindow, height = 20, width = 80)
         contributors_str="""
@@ -309,7 +308,7 @@ Jacob Rengman, <https://www.irr.se>, Initial author and EMC expert
 Göran Nordahl, <https://www.lohmega.com>, Background reserch and inspiration
 Stefan Petersen, <https://www.spe.ciellt.se>, Embedded software expert
 Trimble Sweden AB, <https://www.trimble.com>"""
-# Add your own information here if you whish to be credited before making a pull request
+# Add your own information here (at the end) if you whish to be credited before making a pull request
         credits_text.grid(row=2, column=0, padx=5, pady=5, sticky='n')
         credits_text.insert(END, contributors_str)
         exit_button = tk.Button(creditswindow, text=" EXIT ", command=creditswindow.destroy)
@@ -337,7 +336,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>."""
         license_text.grid(row=0, column=0, padx=5, pady=5, sticky='n')
         license_text.insert(END, license_str)
-        exit_button = Button(licensewindow, text=" EXIT ", command=licensewindow.destroy)
+        exit_button = tk.Button(licensewindow, text=" EXIT ", command=licensewindow.destroy)
         exit_button.grid(row=10, column=0, padx=5, pady=5, sticky='n')
 
     def show_about_window():
@@ -370,7 +369,7 @@ me directly with error reports or feature requests: jre@irr.se"""
         exit_button.grid(row=0, column=2, padx=5, pady=5, sticky='n')
 
     pversiontst_label.grid(row=6, column=0, columnspan=2, padx=5, pady=py, sticky='w')
-    pversion_sv = StringVar(root_frame)
+    pversion_sv = tk.StringVar(root_frame)
     pversion_entry = tk.Entry(left_frame, textvariable=pversion_sv, width=46, font=("Calibri",12), state='disabled') # only for display
     pversion_entry.grid(row=6, column=1, padx=5, pady=py, sticky='w')
     pversion_sv.set("Python "+str(sys.version_info[0])+"."+str(sys.version_info[1])+"."+str(sys.version_info[2]))
@@ -379,7 +378,7 @@ me directly with error reports or feature requests: jre@irr.se"""
     test_python_version()
 
     # About button
-    about_button = Button(left_frame, text="About Near field scanner", command=show_about_window)
+    about_button = tk.Button(left_frame, text="About Near field scanner", command=show_about_window)
     about_button.grid(row=7, column=0, padx=5, pady=py, sticky='w')
     
 if __name__ == '__main__':
