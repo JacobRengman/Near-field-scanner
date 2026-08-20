@@ -723,7 +723,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
             "freq_lst":        cfg.freq_lst,        # list containing frequencies for measured scan points
             "R":               cfg.R                # Measurement matrix with all spatial and frequency points
         }
-        with open(filename, 'w') as f:
+        with open(os.path.join('results', filename), 'w') as f:
             json.dump(scan_data, f, indent=2)
 
     def start_scanning():
