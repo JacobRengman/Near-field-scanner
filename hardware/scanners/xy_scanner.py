@@ -16,7 +16,6 @@ def write(gcode): # Writes one g-code string to the GRBL-controller over COM-por
         timeout = 10000
         if (scanner_handle.in_waiting > 0):
             scanner_handle.read(scanner_handle.in_waiting)
-        print("To scanner: " + gcode.replace("\n", ""))
         scanner_handle.write(bytes(gcode, 'utf-8'))
         while (inbuff != b"ok\r\n") and (timeout > 0):
             timeout -= 1
@@ -40,9 +39,21 @@ def write(gcode): # Writes one g-code string to the GRBL-controller over COM-por
 
 def init(comport):
     global scanner_handle
+    try: # Close a previously opened port first, otherwise re-init fails with "access denied"
+        if scanner_handle != 0 and scanner_handle.is_open:
+            scanner_handle.close()
+    except Exception:
+        pass
+    scanner_handle = 0
+    try: # Check that the port exists first, so a missing scanner gives one short message
+        import serial.tools.list_ports
+        if comport not in [p.device for p in serial.tools.list_ports.comports()]:
+            print("Scanner: " + str(comport) + " is not available (scanner not connected)")
+            return 0
+    except Exception:
+        pass # Could not list the ports, just try to open it below
     try: # connecting to scanner
         scanner_handle = serial.Serial(comport, 115200)
-        print("Serial port created")
         time.sleep(3) # Wait for GRBL to ???
         if(scanner_handle.in_waiting > 0):
             scanner_handle.read(scanner_handle.in_waiting)
@@ -52,8 +63,9 @@ def init(comport):
         write("G90\n") # All distances and positions are Absolute values from the current origin.
         write("G94\n") # Units/min mode at the current F rate.
         return 1
-    except:
-        print("Serial port to scanner not found")
+    except Exception as e:
+        print("Scanner: could not open " + str(comport) + ": " + str(e))
+        scanner_handle = 0
         return 0
 
 def close():

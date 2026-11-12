@@ -16,7 +16,7 @@
 # This is the near field scanner application main module. This module only set up the
 # notebook that holds the other modules of the near field scanner.
 
-print("Starting Near Filed Scanner Application...") # Early printout
+print("Starting Near Field Scanner Application...") # Early printout
 
 import os
 import tkinter as tk
@@ -29,11 +29,27 @@ from modules import scan_result as result
 from modules import scan_help as help_manager
 from PIL import Image, ImageTk
 
-cfg.app_version = "v1.1.0" # Please increment version before a pull request
+# Work-around for a harmless but ugly message when the program exits:
+#   "Exception ignored in: <function Image.__del__ ...> TypeError: catching classes that do
+#    not inherit from BaseException is not allowed"
+# The Tk interpreter is already gone when Python cleans up the PhotoImage objects, and by then
+# tkinter.TclError (which the standard Image.__del__ tries to catch) has been cleared.
+def _safe_image_del(self):
+    if self.name:
+        try:
+            self.tk.call('image', 'delete', self.name)
+        except Exception:
+            pass # The interpreter is already destroyed, nothing left to delete
+tk.Image.__del__ = _safe_image_del
+
+cfg.app_version = "v1.2.0" # Please increment version before a pull request
 
 win = tk.Tk()
 win.geometry("840x780")
-win.iconbitmap(os.path.join('assets', 'Test-icon.ico')) # TODO Make a scanner logotype
+try:
+    win.iconbitmap(os.path.join('assets', 'scan_icon.ico')) # TODO Make a better scanner logotype
+except tk.TclError:
+    pass # .ico window icons are only supported on Windows
 win.title("Near field scanner application " + cfg.app_version)
 win.rowconfigure(0, weight=1)
 win.columnconfigure(0, weight=1)
@@ -45,7 +61,7 @@ tab_lst = []
 [tab_lst.append(ttk.Frame(notebook)) for _ in tab_name_lst]
 
 # Tab 0 = Setup of software parameters
-# Seting up spectrum analyzer, GPIB-address (VISA -address), COM-port to xy-table, perhaps a splash image, licens button, credit button
+# Seting up spectrum analyzer, GPIB-address (VISA -address), COM-port to XY-table, perhaps a splash image, licens button, credit button
 setup.scan_setup(tab_lst[0])
 
 # tab 1 = Background calibration
@@ -54,12 +70,12 @@ calibrate.calibrate(tab_lst[1])
 calibrate.enable_dynamic_resize(win)
 
 # tab 2 = Execute scan
-# including setup of project name / scan name, scanning coordinates, x/y-step size, z-clearance, frequency start/stop, averaging, 
+# including setup of project name / scan name, scanning coordinates, X/Y-step size, Z-clearance, frequency start/stop, averaging, 
 execute.execute_scan(tab_lst[2])
 execute.enable_dynamic_resize(win)
 
 # tab 3 = Show result
-# Including frequency "zoom" slider, spatial markers, frequency markers, calculation of dela frequencis
+# Including frequency "zoom" slider, spatial markers, frequency markers, calculation of delta frequencis
 result.scan_result(tab_lst[3])
 
 def refresh_tabs(event):

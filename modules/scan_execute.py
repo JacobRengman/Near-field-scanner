@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # This is the module that executes scanning and measurement in the near field scanner
-# It should be possible to run this module stand alone, but it is ment to be a module in the
+# It should be possible to run this module stand alone, but it is meant to be a module in the
 # complete near field scanner application
 
 import tkinter as tk
@@ -36,8 +36,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import scan_config as cfg # To hold global variables
 from modules.scan_calibrate import save_calibration
 if not(cfg.sa_model == ""):
-    sa = importlib.import_module(f"hardware.{cfg.sa_model}")
-from hardware import xy_scanner as scan
+    sa = importlib.import_module(f"hardware.spectrum_analyzers.{cfg.sa_model}")
+from hardware.scanners import xy_scanner as scan
 
 # Global variables
 stop, done_points, start_time = 0, 0, 0
@@ -60,8 +60,8 @@ def open_imagefile():
         try:
             cfg.image = img.imread(os.path.join('background_images', cfg.image_path))
             img_xmin, img_ymin = 0, 0 
-            img_xmax = cfg.image.shape[1] # image.shape[1} is x-size shape of image (width)
-            img_ymax = cfg.image.shape[0] # image.shape[0] is y-size shape of image (height)
+            img_xmax = cfg.image.shape[1] # image.shape[1} is X-size shape of image (width)
+            img_ymax = cfg.image.shape[0] # image.shape[0] is Y-size shape of image (height)
             refresh_window(root_frame)
             return True
         except Exception as e:
@@ -89,7 +89,7 @@ def resize(event):
 
 def update_eta_widget():
     start_ts = datetime.timestamp(datetime.now())
-    no_of_x_step = math.floor((cfg.x_stop-cfg.x_start) / cfg.x_step) + 1     # number of x steps
+    no_of_x_step = math.floor((cfg.x_stop-cfg.x_start) / cfg.x_step) + 1     # number of X steps
     no_of_y_step = math.floor((cfg.y_stop-cfg.y_start) / cfg.y_step) + 1 
     cfg.total_points = no_of_x_step * no_of_y_step # Needed by eta()
     total_time = cfg.total_points * pred_speed_dv.get() # (end_ts - start_ts)
@@ -206,12 +206,12 @@ def refresh_window(root_frame):
         subplot1.grid(color = 'lightgray')
 
         # Image to scanner coordinate relations
-        img_xscale = (cfg.x_img[0] - cfg.x_img[1]) / (cfg.x_scan[0] - cfg.x_scan[1]) # x-pixels / scanner increment
-        img_yscale = (cfg.y_img[0] - cfg.y_img[1]) / (cfg.y_scan[0] - cfg.y_scan[1]) # y-pixels / scanner increment
-        img_xmin = cfg.x_scan[0] - cfg.x_img[0] / img_xscale # x offset of image origo
-        img_ymin = cfg.y_scan[0] - cfg.y_img[0] / img_yscale # y offset of image origo
-        img_xmax = cfg.image.shape[1] / img_xscale + img_xmin # image.shape[1} # x-size shape of image (height)
-        img_ymax = cfg.image.shape[0] / img_yscale + img_ymin # image.shape[0] # y-size shape of image (width)
+        img_xscale = (cfg.x_img[0] - cfg.x_img[1]) / (cfg.x_scan[0] - cfg.x_scan[1]) # X-pixels / scanner increment
+        img_yscale = (cfg.y_img[0] - cfg.y_img[1]) / (cfg.y_scan[0] - cfg.y_scan[1]) # Y-pixels / scanner increment
+        img_xmin = cfg.x_scan[0] - cfg.x_img[0] / img_xscale # X offset of image origin
+        img_ymin = cfg.y_scan[0] - cfg.y_img[0] / img_yscale # Y offset of image origin
+        img_xmax = cfg.image.shape[1] / img_xscale + img_xmin # image.shape[1} # X-size shape of image (height)
+        img_ymax = cfg.image.shape[0] / img_yscale + img_ymin # image.shape[0] # Y-size shape of image (width)
 
         # displaying the layout image in scanner coordinates
         subplot1.imshow(cfg.image, cmap="gray", alpha=1.0, extent=[img_xmin, img_xmax, img_ymax, img_ymin], origin="upper")
@@ -265,7 +265,44 @@ def refresh_window(root_frame):
         bg_cache = canvas.copy_from_bbox(fig.bbox) # Store the clean figure background
     root_frame.update()
 
-def update_fields_from_globals(): # Update all the widget fields (Entry's) from global varaibles
+def apply_instrument_limits():
+    """Make the frequency span and the number of points valid for the selected spectrum
+    analyzer. The limits (min_frequency, max_frequency, min_no_of_points, max_no_of_points)
+    are defined in each driver in hardware/spectrum_analyzers. Corrected values are stored
+    in cfg and shown in the GUI. Returns False if the span can't be used (do not measure)."""
+    global sa, disable_updates_from_entries
+    if cfg.sa_model != "":
+        # Follow the model selected in the setup tab (module is cached, so this is the same
+        # object that was initialised there)
+        sa = importlib.import_module(f"hardware.spectrum_analyzers.{cfg.sa_model}")
+    f_min = getattr(sa, "min_frequency", 0.0)
+    f_max = getattr(sa, "max_frequency", float("inf"))
+    p_min = getattr(sa, "min_no_of_points", 1)
+    p_max = getattr(sa, "max_no_of_points", int(cfg.points))
+    start = min(max(cfg.start_freq, f_min), f_max)
+    stop = min(max(cfg.stop_freq, f_min), f_max)
+    points = min(max(int(cfg.points), p_min), p_max)
+    if stop <= start:
+        print(f"The frequency span {cfg.start_freq/1E6:.1f}..{cfg.stop_freq/1E6:.1f} MHz is outside "
+              f"what {cfg.sa_model} supports ({f_min/1E6:.1f}..{f_max/1E6:.0f} MHz)")
+        errorwindow = tk.Toplevel(root_frame)
+        errorwindow.title("Error")
+        tk.Label(errorwindow, text=f"The frequency span is outside what {cfg.sa_model} supports:").pack(padx=10, pady=5)
+        tk.Label(errorwindow, text=f"{f_min/1E6:.1f} MHz to {f_max/1E6:.0f} MHz").pack(padx=10)
+        tk.Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack(pady=8)
+        return False
+    if (start, stop, points) != (cfg.start_freq, cfg.stop_freq, int(cfg.points)):
+        print(f"Adjusted to what {cfg.sa_model} supports: {cfg.start_freq/1E6:.1f}..{cfg.stop_freq/1E6:.1f} MHz, "
+              f"{cfg.points} points -> {start/1E6:.1f}..{stop/1E6:.1f} MHz, {points} points")
+        cfg.start_freq, cfg.stop_freq, cfg.points = start, stop, points
+        disable_updates_from_entries = 1 # Don't let the GUI update trigger more updates
+        start_freq_dv.set(start/1E6)
+        stop_freq_dv.set(stop/1E6)
+        points_iv.set(points)
+        disable_updates_from_entries = 0
+    return True
+
+def update_fields_from_globals(): # Update all the widget fields (Entry's) from global variables
     global disable_updates_from_entries
     disable_updates_from_entries = 1
     new_name_sv.set(cfg.proj_name_path)
@@ -331,7 +368,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
                 new_stop_freq  = float(stop_freq_dv.get()*1E6) # in MHz in GUI and in Hz in variable
                 new_points     = int(points_iv.get())
                 new_average    = int(average_iv.get())
-                new_sweep_time         = int(sweep_time_iv.get())
+                new_sweep_time         = float(sweep_time_iv.get())
                 new_rbw        = int(rbw_iv.get())
                 new_rbw_auto   = int(rbw_auto_iv.get())
                 
@@ -363,7 +400,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
                 update_eta_widget()
                 refresh_window(root_frame)
 
-            except (ValueError, TclError):
+            except (ValueError, tk.TclError):
                 # Happens if an entry box is left blank or contains non-numeric text
                 update_fields_from_globals() # Silently restore last known good values
 
@@ -371,88 +408,89 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
     canvas = FigureCanvasTkAgg(fig, master = image_frame)   
     canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
     mouse_click_cid = fig.canvas.mpl_connect('button_press_event', mouse_event)
-    open_imagefile() # Will allways open cfg.image_path
-
-    # Create file selection frame
-    file_frame = tk.Frame(left_frame, width=200, height=40)
-    file_frame.grid(row=0, column=0, padx=2, pady=2, sticky='nw')
-    new_name_sv = tk.StringVar(root_frame)
-    new_name_sv.set(cfg.proj_name_path) # "Measurement data")
-    name_widget = tk.Entry(file_frame, width=22, font=("Calibri",12), textvariable=new_name_sv,)
-    name_widget.grid(row=0, column=0, padx=5, pady=0, sticky='nw')
+    open_imagefile() # Will always open cfg.image_path
 
     # Create settings frame
     settings_frame = tk.Frame(left_frame, width=200, height=400)
     settings_frame.grid(row=1, column=0, padx=2, pady=2, sticky='nw')
 
+    # File name
+    new_name_sv = tk.StringVar(root_frame)
+    new_name_sv.set(cfg.proj_name_path)
+    name_widget = tk.Entry(settings_frame, font=("Calibri",12), textvariable=new_name_sv,)
+    name_widget.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky='we')
+    def set_proj_name(*args): # Keep cfg.proj_name_path in sync with the entry field
+        cfg.proj_name_path = new_name_sv.get()
+    new_name_sv.trace_add('write', set_proj_name)
+
     coord_widget_lst = []
     ##### Start point
-    coord_widget_lst.append(tk.Label(settings_frame, text="Start x:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=0, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Start X:", width=7, anchor="w"))
+    coord_widget_lst[-1].grid(row=1, column=0, padx=5, pady=2, sticky='nw')
     x_start_dv = tk.DoubleVar(root_frame)
     x_start_dv.set(cfg.x_start)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=x_start_dv,))
     coord_widget_lst[-1].bind('<FocusOut>', update_coordinates_from_entries)
     coord_widget_lst[-1].bind('<Return>', update_coordinates_from_entries)
-    coord_widget_lst[-1].grid(row=0, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=1, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=0, column=2, padx=5, pady=2, sticky='nw')
-    coord_widget_lst.append(tk.Label(settings_frame, text="Start y:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=1, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=1, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Start Y:", width=7, anchor="w"))
+    coord_widget_lst[-1].grid(row=2, column=0, padx=5, pady=2, sticky='nw')
     y_start_dv = tk.DoubleVar(root_frame)
     y_start_dv.set(cfg.y_start)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=y_start_dv,))
     coord_widget_lst[-1].bind('<FocusOut>', update_coordinates_from_entries)
     coord_widget_lst[-1].bind('<Return>', update_coordinates_from_entries)
-    coord_widget_lst[-1].grid(row=1, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=2, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=1, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=2, column=2, padx=5, pady=2, sticky='nw')
  
     ##### Stop point
-    coord_widget_lst.append(tk.Label(settings_frame, text="Stop x:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=2, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Stop X:", width=7, anchor="w"))
+    coord_widget_lst[-1].grid(row=3, column=0, padx=5, pady=2, sticky='nw')
     x_stop_dv = tk.DoubleVar(root_frame)
     x_stop_dv.set(cfg.x_stop)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=x_stop_dv,))
     coord_widget_lst[-1].bind('<FocusOut>', update_coordinates_from_entries)
     coord_widget_lst[-1].bind('<Return>', update_coordinates_from_entries)
-    coord_widget_lst[-1].grid(row=2, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=3, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=2, column=2, padx=5, pady=2, sticky='nw')
-    coord_widget_lst.append(tk.Label(settings_frame, text="Stop y:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=3, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=3, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Stop Y:", width=7, anchor="w"))
+    coord_widget_lst[-1].grid(row=4, column=0, padx=5, pady=2, sticky='nw')
     y_stop_dv = tk.DoubleVar(root_frame)
     y_stop_dv.set(cfg.y_stop)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=y_stop_dv,))
     coord_widget_lst[-1].bind('<FocusOut>', update_coordinates_from_entries)
     coord_widget_lst[-1].bind('<Return>', update_coordinates_from_entries)
-    coord_widget_lst[-1].grid(row=3, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=4, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=3, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=4, column=2, padx=5, pady=2, sticky='nw')
 
     ##### x_step
-    coord_widget_lst.append(tk.Label(settings_frame, text="x Step:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=4, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="X Step Size:", width=8, anchor="w"))
+    coord_widget_lst[-1].grid(row=5, column=0, padx=5, pady=2, sticky='nw')
     x_step_dv = tk.DoubleVar(root_frame)
     x_step_dv.set(cfg.x_step)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=x_step_dv,))  
     coord_widget_lst[-1].bind('<FocusOut>', on_x_step_changed)
     coord_widget_lst[-1].bind('<Return>', on_x_step_changed)
-    coord_widget_lst[-1].grid(row=4, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=5, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=4, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=5, column=2, padx=5, pady=2, sticky='nw')
 
     ##### y_step
-    coord_widget_lst.append(tk.Label(settings_frame, text="y Step:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=5, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Y Step Size:", width=8, anchor="w"))
+    coord_widget_lst[-1].grid(row=6, column=0, padx=5, pady=2, sticky='nw')
     y_step_dv = tk.DoubleVar(root_frame)
     y_step_dv.set(cfg.y_step)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=y_step_dv,))  
     coord_widget_lst[-1].bind('<FocusOut>', update_coordinates_from_entries)
     coord_widget_lst[-1].bind('<Return>', update_coordinates_from_entries)
-    coord_widget_lst[-1].grid(row=5, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=6, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="mm", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=5, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=6, column=2, padx=5, pady=2, sticky='nw')
 
     def update_span(*args):
         """Update global frequency span parameters from GUI inputs."""
@@ -467,36 +505,36 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
 
     ##### start_freq
     coord_widget_lst.append(tk.Label(settings_frame, text="Start freq:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=6, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=7, column=0, padx=5, pady=2, sticky='nw')
     start_freq_dv = tk.DoubleVar(root_frame)
     start_freq_dv.set(cfg.start_freq/1E6)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=start_freq_dv,))  
-    coord_widget_lst[-1].bind('<FocusOut>', update_span)
-    coord_widget_lst[-1].bind('<Return>', update_span)
-    coord_widget_lst[-1].grid(row=6, column=1, padx=5, pady=0, sticky='nw')
-    coord_widget_lst.append(tk.Label(settings_frame, text="MHz", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=6, column=2, padx=5, pady=2, sticky='nw')
-
-    ##### stop_freq
-    coord_widget_lst.append(tk.Label(settings_frame, text="Stop freq:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=7, column=0, padx=5, pady=2, sticky='nw')
-    stop_freq_dv = tk.DoubleVar(root_frame)
-    stop_freq_dv.set(cfg.stop_freq/1E6)
-    coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=stop_freq_dv,))  
     coord_widget_lst[-1].bind('<FocusOut>', update_span)
     coord_widget_lst[-1].bind('<Return>', update_span)
     coord_widget_lst[-1].grid(row=7, column=1, padx=5, pady=0, sticky='nw')
     coord_widget_lst.append(tk.Label(settings_frame, text="MHz", width=4, anchor="w"))
     coord_widget_lst[-1].grid(row=7, column=2, padx=5, pady=2, sticky='nw')
 
-    ##### points TODO not working right now
-    coord_widget_lst.append(tk.Label(settings_frame, text="Points:", width=7, anchor="w"))
+    ##### stop_freq
+    coord_widget_lst.append(tk.Label(settings_frame, text="Stop freq:", width=7, anchor="w"))
     coord_widget_lst[-1].grid(row=8, column=0, padx=5, pady=2, sticky='nw')
+    stop_freq_dv = tk.DoubleVar(root_frame)
+    stop_freq_dv.set(cfg.stop_freq/1E6)
+    coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=stop_freq_dv,))  
+    coord_widget_lst[-1].bind('<FocusOut>', update_span)
+    coord_widget_lst[-1].bind('<Return>', update_span)
+    coord_widget_lst[-1].grid(row=8, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="MHz", width=4, anchor="w"))
+    coord_widget_lst[-1].grid(row=8, column=2, padx=5, pady=2, sticky='nw')
+
+    ##### spectrum points
+    coord_widget_lst.append(tk.Label(settings_frame, text="Points:", width=7, anchor="w"))
+    coord_widget_lst[-1].grid(row=9, column=0, padx=5, pady=2, sticky='nw')
     points_iv = tk.IntVar(root_frame)
     points_iv.set(cfg.points)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=points_iv,))  
     points_iv.trace_add('write', update_span)
-    coord_widget_lst[-1].grid(row=8, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=9, column=1, padx=5, pady=0, sticky='nw')
 
     def set_average(*args):
         if disable_updates_from_entries == 0:
@@ -509,12 +547,12 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
     ##### average
     avg_lbl_sv = tk.StringVar(root_frame, value="Average:") # Tracks label text dynamically
     coord_widget_lst.append(tk.Label(settings_frame, textvariable=avg_lbl_sv, width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=9, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=10, column=0, padx=5, pady=2, sticky='nw')
     average_iv = tk.IntVar(root_frame)
     average_iv.set(cfg.average)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=average_iv))  
     average_iv.trace_add('write', set_average)
-    coord_widget_lst[-1].grid(row=9, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=10, column=1, padx=5, pady=0, sticky='nw')
 
     ##### sweep time
     def set_sweep_time(*args):
@@ -526,14 +564,16 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
                 pass
     
     coord_widget_lst.append(tk.Label(settings_frame, text="Sweep time:", width=9, anchor="w"))
-    coord_widget_lst[-1].grid(row=10, column=0, padx=5, pady=2, sticky='nw')
-    sweep_time_iv = tk.IntVar(root_frame)
+    coord_widget_lst[-1].grid(row=11, column=0, padx=5, pady=2, sticky='nw')
+    sweep_time_iv = tk.DoubleVar(root_frame) # Seconds
     sweep_time_iv.set(cfg.sweep_time)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=sweep_time_iv))  
     sweep_time_iv.trace_add('write', set_sweep_time)
-    coord_widget_lst[-1].grid(row=10, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst[-1].grid(row=11, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="s", width=4, anchor="w"))
+    coord_widget_lst[-1].grid(row=11, column=2, padx=5, pady=2, sticky='nw')
 
-    ##### RBW - Resolution bandwidth TODO This is not ready
+    ##### RBW - Resolution bandwidth
     def set_rbw(*args):
         if disable_updates_from_entries == 0:
             try:
@@ -543,20 +583,20 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
                 pass
 
     coord_widget_lst.append(tk.Label(settings_frame, text="Res BW:", width=7, anchor="w"))
-    coord_widget_lst[-1].grid(row=11, column=0, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=12, column=0, padx=5, pady=2, sticky='nw')
     rbw_iv = tk.IntVar(root_frame)
     rbw_iv.set(cfg.rbw)
     coord_widget_lst.append(tk.Entry(settings_frame, width=8, font=("Calibri",12), textvariable=rbw_iv))  
     rbw_iv.trace_add('write', set_rbw)
-    coord_widget_lst[-1].grid(row=11, column=1, padx=5, pady=0, sticky='nw')
-    coord_widget_lst.append(tk.Label(settings_frame, text="kHz", width=4, anchor="w"))
-    coord_widget_lst[-1].grid(row=11, column=2, padx=5, pady=2, sticky='nw')
+    coord_widget_lst[-1].grid(row=12, column=1, padx=5, pady=0, sticky='nw')
+    coord_widget_lst.append(tk.Label(settings_frame, text="Hz", width=4, anchor="w"))
+    coord_widget_lst[-1].grid(row=12, column=2, padx=5, pady=2, sticky='nw')
     ##### RBW - Auto on/off
     rbw_auto_iv = tk.IntVar(root_frame)
     rbw_auto_iv.set(cfg.rbw_auto)
     rbw_auto_check = tk.Checkbutton(settings_frame, width=20, text="Enable RBW auto", variable=rbw_auto_iv, onvalue=1, offvalue=0)
     rbw_auto_iv.trace_add('write', set_rbw)
-    rbw_auto_check.grid(row=12, column=0, columnspan=3, sticky='nw')
+    rbw_auto_check.grid(row=13, column=0, columnspan=3, sticky='nw')
 
     ##### Peak detector
     def detector_select(*args):
@@ -569,7 +609,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
     peak_detector_iv = tk.IntVar(root_frame)
     peak_detector_iv.trace_add('write', detector_select)
     detector_check = tk.Checkbutton(settings_frame, width=20, text="Enable peak detector", variable=peak_detector_iv, onvalue=1, offvalue=0)
-    detector_check.grid(row=13, column=0, columnspan=3, sticky='nw')
+    detector_check.grid(row=14, column=0, columnspan=3, sticky='nw')
 
     ##### Max hold checkbox
     def toggle_max_hold(*args):
@@ -586,23 +626,37 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
     max_hold_iv = tk.IntVar(root_frame)
     max_hold_iv.trace_add('write', toggle_max_hold)
     maxhold_check = tk.Checkbutton(settings_frame, width=20, text="Enable max hold", variable=max_hold_iv, onvalue=1, offvalue=0)
-    maxhold_check.grid(row=14, column=0, columnspan=3, sticky='nw')
+    maxhold_check.grid(row=15, column=0, columnspan=3, sticky='nw')
 
     ##### Checkbox for show path
     showpath_iv = tk.IntVar(root_frame)
     showpath_iv.set(1)
-    showpath_check = tk.Checkbutton(settings_frame, width=20, text="Show path when scanning", variable=showpath_iv, onvalue=1, offvalue=0)
-    showpath_check.grid(row=15, column=0, columnspan=3, sticky='nw')
+    # This section is commented out. There is very little time gained by disabling this function. TODO remove properly.
+    # showpath_check = tk.Checkbutton(settings_frame, width=20, text="Show path when scanning", variable=showpath_iv, onvalue=1, offvalue=0)
+    # showpath_check.grid(row=16, column=0, columnspan=3, sticky='nw')
+
+    ##### Checkboxes for H & V polarization
+    # HW for probe rotation needs to be designed, 4-axis GRBL is needed TODO
+    # polarisation_h_iv = tk.IntVar(root_frame)
+    # polarisation_v_iv = tk.IntVar(root_frame)
+    # polarisation_h_iv.set(1) # Default on
+    # polarisation_v_iv.set(0) # Default off
+    # polarisation_h_check = tk.Checkbutton(settings_frame, width=20, text="Polarisation H", variable=showpath_iv, onvalue=1, offvalue=0)
+    # polarisation_h_check.grid(row=17, column=0, columnspan=3, sticky='nw')
+    # polarisation_v_check = tk.Checkbutton(settings_frame, width=20, text="Polarisation V", variable=showpath_iv, onvalue=1, offvalue=0)
+    # polarisation_v_check.grid(row=18, column=0, columnspan=3, sticky='nw')
 
     def test_scan_speed():
+        if not apply_instrument_limits(): # Span and points must be valid for the selected spectrum analyzer
+            return
         scan.write("G0 X"+str(cfg.x_start)+" Y"+str(cfg.y_start)+"\n") # Move to start
+        sa.set_points(cfg.points) # Points must be set BEFORE set_span, which builds the frequency list
         cfg.freq_lst = sa.set_span(cfg.start_freq, cfg.stop_freq)
-        sa.set_points(cfg.points)
         sweeps_to_take = average_iv.get() if max_hold_iv.get() == 1 else 1
         cfg.average = average_iv.get() if max_hold_iv.get() == 0 else 0
         sa.set_average(cfg.average)
-        sa.set_sweep_time(cfg.sweep_time)
         sa.set_rbw(cfg.rbw, cfg.rbw_auto)
+        sa.set_sweep_time(cfg.sweep_time) # After set_rbw, which can change the sweep time
         if peak_detector == 1:
             sa.set_peak_detector()
         else:
@@ -641,7 +695,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
         eta_time = datetime.fromtimestamp(start_ts + total_time)
         return eta_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    def fake_spectrum(x, y): # Create a fake spectrum in the x, y-coordinate based on a set of input data
+    def fake_spectrum(x, y): # Create a fake spectrum in the X, Y-coordinate based on a set of input data
         # Faked spectrum consists of a number of Gauss functions
         # Each function is amp(x,y) = a * e^( -1 * ((x-xoffset)^2 + (y-yoffset)^2) / (2 * c^2)) where
         # a = height of peak
@@ -653,7 +707,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
         def aggressor_signal(f, x, y, xoffset, yoffset, spatial_width=3.5, 
                              fs_peak=1.5E9, fs_bw=250E6, f_start=40E6, 
                              f_spacing=80E6, peak_bw=5.0E6, amp_fake=30):
-            # Spatial amplitude (x & y dependant):
+            # Spatial amplitude (X & Y dependant):
             amp_xy = math.exp(-1 * (((x - xoffset)**2 + (y - yoffset)**2)) / (spatial_width**2))
             # Wide frequency space amplitude like structure resonance (f dependant)
             # will be modulated as one wide gaussian filter applied on a comb of many narrow peaks
@@ -703,14 +757,14 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
             "y_start":         cfg.y_start,
             "x_stop":          cfg.x_stop,          # Stop of scan (upper boundary) in scanner coordinates
             "y_stop":          cfg.y_stop,
-            "x_step":          cfg.x_step,          # mm/step in x-direction
-            "y_step":          cfg.y_step,          # mm/step in y-direction
+            "x_step":          cfg.x_step,          # mm/step in X-direction
+            "y_step":          cfg.y_step,          # mm/step in Y-direction
             "image_path":      cfg.image_path,      # Background image filename
             "no_of_calpoints": cfg.no_of_calpoints, # Number of cal points saved 
-            "x_img":           list(cfg.x_img),     # image cal coordinates x-axis 
-            "y_img":           list(cfg.y_img),     # image cal coordinates y-axis
-            "x_scan":          list(cfg.x_scan),    # scanner cal coordinates x-axis
-            "y_scan":          list(cfg.y_scan),    # scanner cal coordinates y-axis
+            "x_img":           list(cfg.x_img),     # image cal coordinates X-axis 
+            "y_img":           list(cfg.y_img),     # image cal coordinates Y-axis
+            "x_scan":          list(cfg.x_scan),    # scanner cal coordinates X-axis
+            "y_scan":          list(cfg.y_scan),    # scanner cal coordinates Y-axis
             "start_freq":      cfg.start_freq,      # start frequency in Hz
             "stop_freq":       cfg.stop_freq,       # stop frequency in Hz
             "points":          cfg.points,          # number of points in spectrum to measure
@@ -731,21 +785,23 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
         if (len(cfg.image) == 0) or (cfg.x_img[0] == cfg.x_img[1]) or (cfg.y_img[0] == cfg.y_img[1]) or \
             (cfg.x_scan[0] == cfg.x_scan[1]) or (cfg.y_scan[0] == cfg.y_scan[1]):
             print("There is no properly calibrated background image!")
-            errorwindow = Toplevel(root_frame)
+            errorwindow = tk.Toplevel(root_frame)
             errorwindow.title("Error")
             tk.Label(errorwindow, text="There is no properly calibrated background image!").pack()
             if (len(cfg.image) == 0):
                 tk.Label(errorwindow, text="There is no image loaded").pack()
             if (cfg.x_img[0] == cfg.x_img[1]):
-                tk.Label(errorwindow, text="Image x-calibration coordinates [0] & [1] are the same"+str(cfg.x_img[0])).pack()
+                tk.Label(errorwindow, text="Image X-calibration coordinates [0] & [1] are the same"+str(cfg.x_img[0])).pack()
             if (cfg.y_img[0] == cfg.y_img[1]):
-                tk.Label(errorwindow, text="Image y-calibration coordinates [0] & [1] are the same"+str(cfg.y_img[0])).pack()
+                tk.Label(errorwindow, text="Image Y-calibration coordinates [0] & [1] are the same"+str(cfg.y_img[0])).pack()
             if (cfg.x_scan[0] == cfg.x_scan[1]):
-                tk.Label(errorwindow, text="Scanner x-calibration coordinates [0] & [1] are the same"+str(cfg.x_scan[0])).pack()
+                tk.Label(errorwindow, text="Scanner X-calibration coordinates [0] & [1] are the same"+str(cfg.x_scan[0])).pack()
             if (cfg.y_scan[0] == cfg.y_scan[1]):
-                tk.Label(errorwindow, text="Scanner y-calibration coordinates [0] & [1] are the same"+str(cfg.y_scan[0])).pack()
+                tk.Label(errorwindow, text="Scanner Y-calibration coordinates [0] & [1] are the same"+str(cfg.y_scan[0])).pack()
             tk.Button(errorwindow, text="  OK  ", command=errorwindow.destroy).pack()
             return False # There is no point in starting a scan if there is not a properly calibrated image
+        if not apply_instrument_limits(): # Span and points must be valid for the selected spectrum analyzer
+            return False
         if mouse_click_cid is not None:
             fig.canvas.mpl_disconnect(mouse_click_cid) # Disconnect mouse input when scanning
             mouse_click_cid = None
@@ -755,10 +811,10 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
         done_points = 0
         grid_data = None
         refresh_window(root_frame)  # Ensure window is freshly drawn
+        sa.set_points(cfg.points) # Points must be set BEFORE set_span, which builds the frequency list
         cfg.freq_lst = sa.set_span(cfg.start_freq, cfg.stop_freq)
-        print(cfg.start_freq, cfg.stop_freq)
-        sa.set_points(cfg.points)
         sa.set_rbw(cfg.rbw, cfg.rbw_auto)
+        sa.set_sweep_time(cfg.sweep_time) # After set_rbw, which can change the sweep time
         sweeps_to_take = average_iv.get() if max_hold_iv.get() == 1 else 1
         cfg.average = average_iv.get() if max_hold_iv.get() == 0 else 0
         sa.set_average(cfg.average)
@@ -766,10 +822,10 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
             sa.set_peak_detector()
         else:
             sa.set_sample_detector()
-        no_of_x_step = math.floor((cfg.x_stop-cfg.x_start) / cfg.x_step) + 1     # number of x steps
+        no_of_x_step = math.floor((cfg.x_stop-cfg.x_start) / cfg.x_step) + 1     # number of X steps
         no_of_y_step = math.floor((cfg.y_stop-cfg.y_start) / cfg.y_step) + 1 
         cfg.total_points = no_of_x_step * no_of_y_step # Needed by eta()
-        scan.write("G0 X" + str(cfg.x_start) + " Y" + str(cfg.y_start) + "\n") # Go to start position before registring the start_time
+        scan.write("G0 X" + str(cfg.x_start) + " Y" + str(cfg.y_start) + "\n") # Go to start position before registering the start_time
         start_time = datetime.now() # Needed by eta()
         R = [[0]*no_of_x_step for _ in range(no_of_y_step)] # Creating an (empty) result 2D-vector
 
@@ -778,7 +834,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
             xcoord = round(cfg.x_start + curr_x * cfg.x_step, 2)
             scan.write("G0 X" + str(xcoord) + "\n") # A positioning move at the "Rapid Feed Rate".
             
-            if (scan.scanner_handle == 0) or (sa.specanalyzer == 0):
+            if (sa.specanalyzer is None or sa.specanalyzer == 0): # No spectrum analyzer (HP driver uses 0, tinySA driver uses None)
                 R[curr_y][curr_x] = fake_spectrum(cfg.x_start + curr_x * cfg.x_step, cfg.y_start + curr_y * cfg.y_step)
             else:
                 R[curr_y][curr_x] = sa.measure_spectrum(sweeps = sweeps_to_take)
@@ -859,7 +915,7 @@ def execute_scan(frame): # This is the main routine in the execute_scan module t
     stop_button = tk.Button(start_frame, text="Stop", command=stop_scanning, bg='white') # Button will change to 'tomato' when scanning
     stop_button.grid(row=0, column=1, padx=5, pady=2)
 
-##    # Debuging buttons
+##    # Debugging buttons
 ##    debug_frame = tk.Frame(left_frame, width=200, height=100)
 ##    debug_frame.grid(row=20, column=0, padx=2, pady=5, sticky='nw')
 ##    debug5_widget = tk.Button(debug_frame, text="Print scan_config", command=print_scan_config)
@@ -889,6 +945,7 @@ def enable_dynamic_resize(window):
     image_frame.bind("<Configure>", on_image_frame_resize)
 
 if __name__ == '__main__': # Standalone init and enable for manual control
+    os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # Back up CWD one level in standalone mode
     root = tk.Tk()  # create root window
     root.title("Execute Scan stand alone test module")
     if(cfg.scanner_comport != ""):

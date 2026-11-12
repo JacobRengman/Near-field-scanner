@@ -36,15 +36,15 @@ import json
 from PIL import ImageGrab
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import scan_config as cfg # To hold application global variables
-from hardware import xy_scanner as scan
+from hardware.scanners import xy_scanner as scan
 if not(cfg.sa_model == ""):
-    sa = importlib.import_module(f"hardware.{cfg.sa_model}")
+    sa = importlib.import_module(f"hardware.spectrum_analyzers.{cfg.sa_model}")
 
 # Global variables for this module
 x_mkr = [0.0]*4               # Spatial markers
 y_mkr = [0.0]*4               # Spatial markers
 no_of_mkr = 0                 # Start with no markers active
-x_mkr_dv, y_mkr_dv = [], []   # List of DoubleVar for x & y marker coordinates
+x_mkr_dv, y_mkr_dv = [], []   # List of DoubleVar for X & Y marker coordinates
 frmkr_dv, frdelta_dv = [], [] # List of frequency marker frequencies
 freq_mkr = [0.0]*8            # Frequency marker lists
 ampl_mkr = [0.0]*8            # Amplitude of each frequency marker
@@ -72,8 +72,48 @@ color4  = ['#FF0000', '#C1FF00', '#00FFC1', '#0000FF', '#E0E0E0']
 #color4l = ['#FF8000', '#E0FF80', '#80FFE0', '#8080E0']
 color4l = ['#FF9080', '#FFE280', '#80FF90', '#A080FF', '#E0E0E0']
 
-def mag(H_field, V_field):
-    magnitude = 10 * math.log(math.sqrt((10 ** (H_field/10)) ** 2 + (10 ** (V_field/10)) ** 2), 10)
+def grab_window_image(window):
+    """Return a screenshot (PIL image) of the client area of a Tk window.
+    The window can be on any monitor, also when the monitors have different display scaling."""
+    window.update_idletasks()
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        # This program is not DPI aware, so Windows gives it "virtual" coordinates that differ from the real screen pixels on
+        # monitors with display scaling. Let this thread work in real pixels only while the screenshot is taken.
+        old_context = None
+        try:
+            user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+            user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+            old_context = user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4)) # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+        except (AttributeError, OSError):
+            pass # Older Windows versions, nothing to switch
+        try:
+            hwnd = window.winfo_id() # The client area of the Tk window (without title bar and borders)
+            rect = wintypes.RECT()
+            user32.GetClientRect(hwnd, ctypes.byref(rect))
+            corner = wintypes.POINT(0, 0)
+            user32.ClientToScreen(hwnd, ctypes.byref(corner)) # Top left corner of the client area in screen pixels
+            # The virtual desktop covers all monitors. Its top left corner is negative if a monitor is left of or above the main monitor.
+            left, top = user32.GetSystemMetrics(76), user32.GetSystemMetrics(77) # SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN
+            screen = ImageGrab.grab(all_screens=True) # All monitors, not only the main monitor
+            x0, y0 = corner.x - left, corner.y - top
+            # print("grab_window_image:", corner.x, corner.y, rect.right, rect.bottom, left, top, screen.size) # Uncomment for debugging
+            return screen.crop((x0, y0, x0 + rect.right, y0 + rect.bottom))
+        finally:
+            if old_context:
+                user32.SetThreadDpiAwarenessContext(ctypes.c_void_p(old_context))
+    # Linux and macOS: Tk reports coordinates for the whole screen. The screen image can have more pixels (Retina screens).
+    x, y = window.winfo_rootx(), window.winfo_rooty()
+    w, h = window.winfo_width(), window.winfo_height()
+    screen = ImageGrab.grab()
+    scale_x = screen.width / window.winfo_screenwidth()
+    scale_y = screen.height / window.winfo_screenheight()
+    return screen.crop((round(x * scale_x), round(y * scale_y), round((x + w) * scale_x), round((y + h) * scale_y)))
+
+def mag(H_field, V_field): # Orthogonal linear (non logarithmic) field magnitudes can be added 
+    magnitude = 10 * math.log10(10 ** (H_field/10) + 10 ** (V_field/10))
     return magnitude
 
 def open_datafile1(filename):
@@ -126,6 +166,12 @@ def open_datafile1(filename):
     cfg.freq_lst        = data['freq_lst']
     cfg.R               = data['R']
     cfg.S               = []
+    # Repair files whose frequency list has a different length than the measured spectra
+    # (older scans were saved with a 290-point list but 401-point data)
+    data_len = max((len(p) for row in cfg.R for p in row if isinstance(p, list)), default=0)
+    if data_len and len(cfg.freq_lst) != data_len:
+        print(f"Frequency list has {len(cfg.freq_lst)} points but the data has {data_len}: regenerating it from start/stop frequency")
+        cfg.freq_lst = list(np.linspace(cfg.start_freq, cfg.stop_freq, data_len))
     spectrum = tot_spectrum()
     spectrum_max = np.ceil(max(spectrum))
     spectrum_min = np.floor(min(spectrum))
@@ -225,22 +271,21 @@ def tot_spectrum():
         F = [] # list of amplitudes for one frequency in each point
         for x in range(no_of_x_step):
             for y in range(no_of_y_step):
-                if len(cfg.S) == 0: # S == 0 when there is only one set of scan data (two sets is when two perpendicular megnetic fields are recorded)
+                if len(cfg.S) == 0: # S == 0 when there is only one set of scan data (two sets is when two perpendicular magnetic fields are recorded)
                     try:
                         F.append(cfg.R[y][x][i])
-                    except:
-                        print("len(F)", len(F))
-                        print("len(cfg.R)", len(cfg.R))
-                        print("y", y)
-                        print("x", x)
-                        print("i", i)
-                        print("len(R[y])", len(cfg.R[y]))
-                        print("len(R[y][x])", len(cfg.R[y][x]))
-                        print("len(R[y][x][i])", len(cfg.R[y][x][i]))
+                    except (IndexError, TypeError):
+                        # Point is unmeasured (0, e.g. scan was stopped) or incomplete (too few values): skip it
+                        if i == 0:
+                            print(f"tot_spectrum: skipping incomplete point x={x}, y={y}")
                 else:
-                    # F.append(round(mag(cfg.R[y][x][i], cfg.S[y][x][i]), 2)) # Calculate magnitude from XY-field probes TODO This is the correct calculation of magnitude
-                    F.append(round(max(cfg.R[y][x][i], cfg.S[y][x][i]), 2)) # Take maximum value of the two fields
-        freq_spectrum.append(max(F)) # Max ampliture for each frequency
+                    try:
+                        F.append(round(mag(cfg.R[y][x][i], cfg.S[y][x][i]), 2)) # Calculate magnitude from XY-field probes
+                        # F.append(round(max(cfg.R[y][x][i], cfg.S[y][x][i]), 2)) # Take maximum value of the two fields
+                    except (IndexError, TypeError):
+                        if i == 0:
+                            print(f"tot_spectrum: skipping incomplete point x={x}, y={y}")
+        freq_spectrum.append(max(F) if F else -100.0) # Max ampliture for each frequency (-100 dBm if no point has data)
     return freq_spectrum
 
 def find_nearest(array, value): # Find the nearest value in an array and return its index
@@ -248,7 +293,7 @@ def find_nearest(array, value): # Find the nearest value in an array and return 
     index = (np.abs(array - value)).argmin()
     return index
 
-def update_fields_from_globals(): # Update all the widget fields (Entry's) from global varaibles
+def update_fields_from_globals(): # Update all the widget fields (Entry's) from global variables
     """Re-sync scan_result UI components with global cfg state."""
     scanfile1_name = os.path.basename(cfg.scanfile1_path)
     selected_file1_label.config(text=scanfile1_name)
@@ -388,6 +433,9 @@ def mouse_motion_event(event):
             subplot2.grid(color='lightgrey', linestyle=":", linewidth=1)
             ax = fig2.gca()
             ax.set_ylim([spectrum_min, spectrum_max])
+            subplot2.set_xlabel("Frequency [Hz]")
+            subplot2.set_ylabel("Amplitude [dBm]")
+            fig2.tight_layout() # Same layout as in refresh_window, otherwise the X-axis is cut off
             canvas2.draw()
             spectrum_frame.update()
 
@@ -452,9 +500,9 @@ def refresh_window(root_frame):
         z = []
         for x in range(no_of_x_step):
             if len(cfg.S) == 0: # Data exists only in R
-                z.append(round(max(cfg.R[y][x][from_freq:to_freq]), 1)) # Ampliture in each point is just max ampliture for every frequency
+                z.append(round(max(cfg.R[y][x][from_freq:to_freq]), 1)) # Amplitude in each point is just max amplitude for every frequency
             else:
-                z.append(round(mag(max(cfg.R[y][x][from_freq:to_freq]), max(cfg.S[y][x][from_freq:to_freq])), 1)) # Amplitude magitude from two fields x- and Y-probes
+                z.append(round(mag(max(cfg.R[y][x][from_freq:to_freq]), max(cfg.S[y][x][from_freq:to_freq])), 1)) # Amplitude magitude from two fields X- and Y-probes
         Rz.append(z)
 
     # Set up matplotlib plot
@@ -465,7 +513,7 @@ def refresh_window(root_frame):
     # displaying the layout image in scanner coordinates
     if len(cfg.image) != 0: # Don't display an empty image
         subplot1.imshow(cfg.image, cmap="gray", alpha=1.0, extent=[img_xmin, img_xmax, img_ymax, img_ymin], origin="upper")
-    # display the measured amplitude overlayed on the layout (in scanner coordinates)
+    # display the measured amplitude overlaid on the layout (in scanner coordinates)
     x_stop_adj = cfg.x_stop-(cfg.x_stop-cfg.x_start)%cfg.x_step+cfg.x_step/2
     y_stop_adj = cfg.y_stop-(cfg.y_stop-cfg.y_start)%cfg.y_step+cfg.y_step/2
     mesh = subplot1.imshow(Rz, cmap="rainbow", alpha=0.5,
@@ -643,7 +691,7 @@ def scan_result(frame):
     canvas2.mpl_connect('button_release_event', button_release)
 
     # Create file selection frame
-    file_frame = tk.Frame(left_frame, width=200, height=40)
+    file_frame = tk.Frame(left_frame)
     file_frame.grid(row=0, column=0, padx=2, pady=2, sticky='nw')
     scanfile1_name = os.path.basename(cfg.scanfile1_path)
     scanfile2_name = os.path.basename(cfg.scanfile2_path)
@@ -693,7 +741,7 @@ def scan_result(frame):
     marker_frame.grid(row=1, column=0, padx=2, pady=5, sticky='nw')
 
     mkr_widget_lst = [] # List of all type of tkinter widgets in the marker_frame
-    # Create labels and entrys in marker_frame
+    # Create labels and entries in marker_frame
     mkr_widget = tk.Label(marker_frame, text="XY-markers", anchor="w")
     mkr_widget.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky='nw')
 
@@ -740,7 +788,7 @@ def scan_result(frame):
     frmkr_widget_lst = [] # List of all type of tkinter widgets in the frmkr_frame
     frmkr_dv.clear()
     frdelta_dv.clear()
-    # Create labels and entrys in frmkr_frame
+    # Create labels and entries in frmkr_frame
     frmkr_widget = tk.Label(frmkr_frame, text="Frequency markers", anchor="w")
     frmkr_widget.grid(row=0, column=0, columnspan=3, padx=5, pady=2, sticky='nw')
     for i in range(8): # For all eight frequency markers
@@ -780,7 +828,7 @@ def scan_result(frame):
     showcb_iv = tk.IntVar(root_frame)
     showcb_check = tk.Checkbutton(frmkr_frame, width=20, text="Show colorbar", variable=showcb_iv, onvalue = 1, offvalue=0)
     showcb_check.grid(row=10, column=0, columnspan=3)
-    showcb_iv.trace('w', update_plot_cb)
+    showcb_iv.trace_add('write', update_plot_cb)
 
     def save_spectrum_data():
         """Export spectrum plot data to CSV and display confirmation dialog."""
@@ -793,35 +841,24 @@ def scan_result(frame):
                 f.write(f"{cfg.freq_lst[i]};{spectrum[i]}\n")
         save_csv_window = tk.Toplevel(root_frame, height=100, width=150)
         save_csv_window.title("Spectrum Data")
-        tk.Label(save_csv_window, text="Spectrum data has been saved as: "+csv_filename).pack(padx=10, pady=10)
+        save_csv_lbl = tk.Label(save_csv_window, text="Spectrum data has been saved as: \n"+csv_filename+"\nin the results/ folder.")
+        save_csv_lbl.pack(padx=10, pady=10)
         tk.Button(save_csv_window, text=" EXIT ", command=save_csv_window.destroy).pack(pady=5)
 
     def save_window_screenshot():
-        """Capture a screenshot of the entire application window."""
+        """Capture a screenshot of the entire application window (the tabs and everything below them)."""
         if not cfg.scanfile1_path:
             return
         png_filename = cfg.scanfile1_path[:-4] + ".png"
-        # Get screen coordinates of root window
-        x = root_frame.winfo_rootx()
-        y = root_frame.winfo_rooty()
-        w = root_frame.winfo_width()
-        h = root_frame.winfo_height()
-        # Grab pixel region and save
-        img_crop = ImageGrab.grab(bbox=(x, y, x + w, y + h))
+        img_crop = grab_window_image(root_frame.winfo_toplevel()) # The whole application window, not only the active tab
         img_crop.save(os.path.join('results', png_filename))
         save_img_window = tk.Toplevel(root_frame, height=100, width=150)
         save_img_window.title("Screenshoot saved")
-        save_img_lbl = tk.Label(save_img_window, text=f"Full window image saved as:\n{os.path.basename(os.path.join('results', png_filename))}")
+        save_img_lbl = tk.Label(save_img_window, text=f"Full window image saved as:\n{os.path.basename(os.path.join('results', png_filename))}\nin the results/ folder.")
         save_img_lbl.pack(padx=10, pady=10)
+        # save_result_lbl = tk.Label(save_img_window, text=f"in the results/ folder.")
+        # save_result_lbl.pack(padx=10, pady=2)
         tk.Button(save_img_window, text=" EXIT ", command=save_img_window.destroy).pack(pady=5)
-
-    # Debuging buttons TODO remove
-    # debug_frame = tk.Frame(left_frame, width=200, height=100)
-    # debug_frame.grid(row=20, column=0, padx=2, pady=5, sticky='nw')
-    # debug1_widget = tk.Button(debug_frame, text="Adjust aspect", command=adjust_aspect)
-    # debug1_widget.grid(row=0, column=0, padx=5, pady=0)
-    # debug2_widget = tk.Button(debug_frame, text="Print framesize", command=print_framesize)
-    # debug2_widget.grid(row=0, column=1, padx=5, pady=0)
 
     # Save buttons
     save_frame = tk.Frame(left_frame, width=200, height=100)
@@ -841,6 +878,7 @@ def scan_result(frame):
             selected_file2_label.config(text="")
 
 if __name__ == "__main__": # Standalone init and enable for manual control
+    os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # Back up CWD one level in standalone mode
     root = tk.Tk()  # create root window
     root.title("Show result stand alone test module") # title of the GUI window
     root.resizable(True, True) # Make the window resizeable

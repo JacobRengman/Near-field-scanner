@@ -30,7 +30,9 @@
 # General spectrum analyzer constants
 min_frequency = 150E3 # 150 kHz
 max_frequency = 1800E6 # 1.8 GHz
+min_no_of_points = 401 # The number of points is fixed
 max_no_of_points = 401
+_dummy_warned = False
 specanalyzer = 0 # global handle for spectrum analyser accesses
 
 def measure_spectrum(sweeps=1): # HP 8591 Measure and retreive the spectrum data from the spectrum analyzer
@@ -48,7 +50,10 @@ def measure_spectrum(sweeps=1): # HP 8591 Measure and retreive the spectrum data
         for element in spectrum_str_lst:
             spectrum_lst.append(float(element))
     else:
-        print("No spectum analyzer connected")
+        global _dummy_warned
+        if not _dummy_warned: # Warn once instead of once per measured point
+            print("No spectrum analyzer connected, returning dummy data (-70 dBm)")
+            _dummy_warned = True
         spectrum_lst = [-70.00] # return dummy value
     return spectrum_lst
 
@@ -56,9 +61,8 @@ def set_span(start, stop): # HP 8591 Setup spectrum analyzer span for measuremen
     if specanalyzer != 0:
         specanalyzer.write("FA "+str(start)+";")
         specanalyzer.write("FB "+str(stop)+";")
-        print(start, stop)
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
     points = 401 # Default for HP 8591
     step = (stop - start) / (points - 1)
     freq_lst = []
@@ -67,7 +71,6 @@ def set_span(start, stop): # HP 8591 Setup spectrum analyzer span for measuremen
     return freq_lst
 
 def set_points(points):
-    print("HP 8591 doesn't support setting number of points.")
     pass # Im not sure the 8591 support setting number of points
 
 def get_points():
@@ -77,12 +80,10 @@ def set_average(average):
     if(specanalyzer != 0):
         if(average == 0):
             specanalyzer.write("VAVG OFF;") # Video average off
-            print("Video average OFF")
         else:
             specanalyzer.write("VAVG "+str(average)+";") # Video average
-            print("Video average "+str(average))
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def set_rbw(rbw, rbw_auto):
     if(specanalyzer != 0):
@@ -91,38 +92,38 @@ def set_rbw(rbw, rbw_auto):
         else:
             specanalyzer.write("RB "+str(rbw)+";") # Resolution bandwidth
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def set_peak_detector():
     if(specanalyzer != 0):
         specanalyzer.write("DET POS;") # Positive peak detection
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def set_sample_detector():
     if(specanalyzer != 0):
         specanalyzer.write("DET SMP;") # Sample detection
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def set_sweep_time(sweep_time):
     if(specanalyzer != 0):
         specanalyzer.write("ST "+str(sweep_time)+";") # Sweep time, longer time gives smother curves
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def local():
     if(specanalyzer != 0):
         specanalyzer.write("CONTS;") # Back to continous sweep
         specanalyzer.write("VAVG 0;") # Video average
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 def write(command):
     if(specanalyzer != 0):
         specanalyzer.write(command) # Write the debug command
     else:
-        print("No spectum analyzer connected")
+        pass # No spectrum analyzer connected
 
 #Spectrum Analyzer HP_8591 connection
 def init(rm, address):
@@ -133,12 +134,11 @@ def init(rm, address):
         #specanalyzer.write('*IDN?') # NOT supported by this old instrumnet :-(
         #idn = specanalyzer.read()
         #if idn == "":
-        print("Spectrum Analyzer connected")
         specanalyzer.write("SNGLS;") # Single sweep
         specanalyzer.write("TDF P;") # Transfer data format "real"
         #specanalyzer.write("DET PK;") # Detector peak (default)
         specanalyzer.write("ST 0.2") # Sweep time
         return 1
     except:
-        print("Spectrum Analyzer failed")
+        print("Spectrum analyzer: could not open " + str(address))
         return 0

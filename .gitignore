@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Log files (created by PyVISA etc.)
+*.log
+
+# Scan results: keep only the example file, so that no measurement data
+# is shared between developers by accident
+results/*
+!results/TinySA 20261112_083957.nfs
+
+# Local files
+Claude outputs/

@@ -29,7 +29,7 @@ import math
 import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import scan_config as cfg # To hold global variables
-from hardware import xy_scanner as scan
+from hardware.scanners import xy_scanner as scan
 
 # Global variables
 jog_step = 0
@@ -60,8 +60,8 @@ def open_imagefile():
         try:
             cfg.image = img.imread(os.path.join('background_images', cfg.image_path))
             img_xmin, img_ymin = 0, 0 
-            img_xmax = cfg.image.shape[1] # image.shape[1} is x-size shape of image (width)
-            img_ymax = cfg.image.shape[0] # image.shape[0] is y-size shape of image (height)
+            img_xmax = cfg.image.shape[1] # image.shape[1} is X-size shape of image (width)
+            img_ymax = cfg.image.shape[0] # image.shape[0] is Y-size shape of image (height)
             refresh_window(root_frame)
             return True
         except Exception as e:
@@ -167,7 +167,7 @@ def reset_jog_step():
         if btn:
             btn.config(bg='lightgrey')
 
-def update_fields_from_globals(): # Update all the widget fields (Entry's) from global varaibles
+def update_fields_from_globals(): # Update all the widget fields (Entry's) from global variables
     global x_img_iv, y_img_iv, x_scan_dv, y_scan_dv, selected_file_label
     global disable_updates_from_entries, open_button
     reset_jog_step()  # Reset jog step size on tab focus/refresh
@@ -203,6 +203,7 @@ def adjust_aspect(): # Aspect correction (filing the frame)
     if len(cfg.image) == 0:
         return # No purpose in adjusting if there is no image
     if (img_xmax == 0) and (img_ymax == 0): # Something went wrong during previous open_imagefile. cfg_image_path was still = "" TODO fix this issue
+        print("scan_calibrate adjust_aspect: Something went wrong during previous open_imagefile")
         open_imagefile()
     zoom_img_aspect = (img_xmax - img_xmin) / (img_ymax - img_ymin)
     frame_aspect =  (root_frame.winfo_width() - left_frame.winfo_width()) / (root_frame.winfo_height())
@@ -307,7 +308,7 @@ def mouse_event(event): # Mouse button event
     closest = 10000
     point = 10
     for i in range(cfg.no_of_calpoints): # look at all calibration points
-        distance = math.hypot(cfg.x_img[i]-event.xdata, cfg.y_img[i]-event.ydata) # check distanse from points
+        distance = math.hypot(cfg.x_img[i]-event.xdata, cfg.y_img[i]-event.ydata) # check distance from points
         if (distance < 100) and (distance < closest):
             closest = distance
             point = i
@@ -378,7 +379,7 @@ def pan_image(event): # This is the motion_notify_event. Event is connected only
         img_xmax = pan_xmax + delta_x
         img_ymin = pan_ymin + delta_y
         img_ymax = pan_ymax + delta_y
-        refresh_window(root_frame) # redraw image panorated to the new coordiantes
+        refresh_window(root_frame) # redraw image panorated to the new coordinates
 
 def save_calibration():
     global image_rotation
@@ -406,7 +407,6 @@ def save_calibration():
             tk.Button(warn_win, text=" OK ", command=warn_win.destroy).pack(pady=5)
             # We still allow saving, but the user is explicitly warned!
 
-    print("save_calibration")
     with open("scan_config.py", "w") as f:
         f.write("app_version =      \"" + cfg.app_version + "\"\n") # Application version string
         f.write("scanner_comport =  \"" + str(cfg.scanner_comport)+"\"\n")
@@ -415,20 +415,20 @@ def save_calibration():
         f.write("proj_name_path =   \"" + str(cfg.proj_name_path)+"\"\n") # 150 is maximum
         f.write("image_path =       \"" + cfg.image_path+"\"\n")
         f.write("image =            []\n")
-        f.write("no_of_calpoints =  " + str(cfg.no_of_calpoints)+"\n") # mm/step in x-direction
-        f.write("x_img =            " + str(cfg.x_img)+"\n") # image cal coordinates x-axis 
-        f.write("y_img =            " + str(cfg.y_img)+"\n") # image cal coordinates y-axis
-        f.write("x_scan =           " + str(cfg.x_scan)+"\n") # scanner cal coordinates x-axis
-        f.write("y_scan =           " + str(cfg.y_scan)+"\n") # scanner cal coordinates y-axis
-        f.write("scanfile1_path =   \"" + str(cfg.scanfile1_path)+"\"\n") # scanner cal coordinates x-axis
-        f.write("scanfile2_path =   \"" + str(cfg.scanfile2_path)+"\"\n") # scanner cal coordinates y-axis
-        f.write("total_points =     " + str(cfg.total_points)+"\n") # scanner cal coordinates y-axis
-        f.write("x_start =          " + str(cfg.x_start)+"\n") # scanner cal coordinates y-axis
-        f.write("y_start =          " + str(cfg.y_start)+"\n") # scanner cal coordinates y-axis
-        f.write("x_stop =           " + str(cfg.x_stop)+"\n") # scanner cal coordinates y-axis
-        f.write("y_stop =           " + str(cfg.y_stop)+"\n") # scanner cal coordinates y-axis
-        f.write("x_step =           " + str(cfg.x_step)+"\n") # scanner cal coordinates y-axis
-        f.write("y_step =           " + str(cfg.y_step)+"\n") # scanner cal coordinates y-axis
+        f.write("no_of_calpoints =  " + str(cfg.no_of_calpoints)+"\n") # mm/step in X-direction
+        f.write("x_img =            " + str(cfg.x_img)+"\n") # image cal coordinates X-axis 
+        f.write("y_img =            " + str(cfg.y_img)+"\n") # image cal coordinates Y-axis
+        f.write("x_scan =           " + str(cfg.x_scan)+"\n") # scanner cal coordinates X-axis
+        f.write("y_scan =           " + str(cfg.y_scan)+"\n") # scanner cal coordinates Y-axis
+        f.write("scanfile1_path =   \"" + str(cfg.scanfile1_path)+"\"\n") # scanner cal coordinates X-axis
+        f.write("scanfile2_path =   \"" + str(cfg.scanfile2_path)+"\"\n") # scanner cal coordinates Y-axis
+        f.write("total_points =     " + str(cfg.total_points)+"\n") # scanner cal coordinates Y-axis
+        f.write("x_start =          " + str(cfg.x_start)+"\n") # scanner cal coordinates Y-axis
+        f.write("y_start =          " + str(cfg.y_start)+"\n") # scanner cal coordinates Y-axis
+        f.write("x_stop =           " + str(cfg.x_stop)+"\n") # scanner cal coordinates Y-axis
+        f.write("y_stop =           " + str(cfg.y_stop)+"\n") # scanner cal coordinates Y-axis
+        f.write("x_step =           " + str(cfg.x_step)+"\n") # scanner cal coordinates Y-axis
+        f.write("y_step =           " + str(cfg.y_step)+"\n") # scanner cal coordinates Y-axis
         f.write("start_freq =       " + str(cfg.start_freq)+"\n") # start frequency 
         f.write("stop_freq =        " + str(cfg.stop_freq)+"\n") # stop frequency
         f.write("points =           " + str(cfg.points)+"\n") # number of points in spectrum to measure 
@@ -477,9 +477,6 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     fig.canvas.mpl_connect('button_release_event', button_release) # Stop the panning when mid mouse button is released
     refresh_window(root_frame)
 
-    # Create file selection frame
-    file_frame = tk.Frame(left_frame, width=180, height=40)
-    file_frame.grid(row=0, column=0, padx=2, pady=2)
     open_imagefile()
 
     def open_imagefile_dialog():
@@ -512,8 +509,8 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     rotate_button.grid(row=0, column=2, padx=2, pady=0)
     
     # Create coordinate list frame
-    coord_frame = tk.Frame(left_frame, width=200, height=400)
-    coord_frame.grid(row=1, column=0, padx=2, pady=2)
+    coord_frame = tk.Frame(left_frame)
+    coord_frame.grid(row=1, column=0, padx=2, pady=2, sticky='nw')
 
     coord_widget_lst = [] # List of all type of tkinter widgets in the coord_frame
     py = 2
@@ -527,9 +524,9 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
         cfg.y_img.append(0)
         cfg.x_scan.append(0)
         cfg.y_scan.append(0)
-    # Create labels and entrys in coord_frame
+    # Create labels and entries in coord_frame
     for i in range(4): # For all four sets of coordinate pairs
-        coord_widget_lst.append(tk.Label(coord_frame, bg=color_2[i], text="Image xy:", width=8, anchor="w"))
+        coord_widget_lst.append(tk.Label(coord_frame, bg=color_2[i], text="Image XY:", width=9, anchor="w"))
         coord_widget_lst[-1].grid(row=4*i, column=0, padx=5, pady=py, sticky='nw')
         x_img_iv.append(tk.IntVar(root_frame))
         coord_widget_lst.append(tk.Entry(coord_frame, textvariable=x_img_iv[i], width=6, font=("Calibri",12)))
@@ -544,7 +541,7 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
         coord_widget_lst[-1].bind('<Return>', lambda e, idx=i: on_img_entry_changed(idx))
         coord_widget_lst[-1].grid(row=4*i, column=2, padx=5, pady=0)
 
-        coord_widget_lst.append(tk.Label(coord_frame, bg=color_2[i], text="Scanner xy:", width=8, anchor="w"))
+        coord_widget_lst.append(tk.Label(coord_frame, bg=color_2[i], text="Scanner XY:", width=9, anchor="w"))
         coord_widget_lst[-1].grid(row=4*i+1, column=0, padx=5, pady=py)
         x_scan_dv.append(tk.DoubleVar(root_frame))
         coord_widget_lst.append(tk.Entry(coord_frame, textvariable=x_scan_dv[i], width=6, font=("Calibri",12)))
@@ -559,14 +556,14 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
         coord_widget_lst[-1].bind('<Return>', lambda e, idx=i: on_scan_entry_changed(idx))
         coord_widget_lst[-1].grid(row=4*i+1, column=2, padx=5, pady=0)
 
-        coord_widget_lst.append(tk.Button(coord_frame, text="Get xy", width=5))
+        coord_widget_lst.append(tk.Button(coord_frame, text="Get XY", width=5))
         coord_widget_lst[-1].grid(row=4*i+2, column=1, padx=5, pady=0)
         coord_widget_lst.append(tk.Button(coord_frame, text="Go to", width=5))
         coord_widget_lst[-1].grid(row=4*i+2, column=2, padx=5, pady=0)
 
     getxy_Callback_lst = []
     for i in range(4): # For all four sets of coordinate pairs
-        def getxy_Callback(i=i): # Store pressent scanner coordinates in the correct calibration point
+        def getxy_Callback(i=i): # Store present scanner coordinates in the correct calibration point
             cfg.x_scan[i] = round(x_pos, 2)
             cfg.y_scan[i] = round(y_pos, 2)
             x_scan_dv[i].set(str(round(x_pos, 2)))
@@ -634,11 +631,11 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     def z_minus_Callback():
         global z_pos
         check_step_size()
-        if jog_step < 10: # prevent long moves in negative z direction
+        if jog_step < 10: # prevent long moves in negative Z direction
             z_pos = z_pos - jog_step
         sc_label_z.config(text="Z:{0:7.2f}".format(z_pos))
         scan.write("G0 Z" + str(z_pos) + "\n")
-    def go_origo_Callback():
+    def go_origin_Callback():
         global x_pos, y_pos, z_pos
         x_pos = 0
         y_pos = 0
@@ -677,31 +674,25 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
             z_minus_Callback()
 
     # Create scanner move frame
-    move_frame = tk.Frame(left_frame, width=200, height=40)
+    move_frame = tk.Frame(left_frame)
     move_frame.grid(row=3, column=0, padx=4, pady=2)
-    move_button01 = tk.Button(move_frame, text="Y-", width=7, command=y_minus_Callback, # TODO Use lambda with a delta coordinate instead 
-                            repeatdelay=600, repeatinterval=200)
+    move_button01 = tk.Button(move_frame, text="Y-", width=7, command=y_minus_Callback) # TODO Use lambda with a delta coordinate instead 
     move_button01.grid(row=0, column=1, padx=4, pady=2)
-    move_button02 = tk.Button(move_frame, text="Up", width=7, command=z_plus_Callback,
-                            repeatdelay=600, repeatinterval=200)
+    move_button02 = tk.Button(move_frame, text="Up", width=7, command=z_plus_Callback)
     move_button02.grid(row=0, column=2, padx=4, pady=2)
-    move_button10 = tk.Button(move_frame, text="X-", width=7, command=x_minus_Callback,
-                            repeatdelay=600, repeatinterval=200)
+    move_button10 = tk.Button(move_frame, text="X-", width=7, command=x_minus_Callback)
     move_button10.grid(row=1, column=0, padx=4, pady=2)
-    move_button11 = tk.Button(move_frame, text=" Go Origo", command=go_origo_Callback, width=7)
+    move_button11 = tk.Button(move_frame, text="Go Origin", width=7, command=go_origin_Callback)
     move_button11.grid(row=1, column=1, padx=4, pady=2)
-    move_button12 = tk.Button(move_frame, text="X+", width=7, command=x_plus_Callback,
-                            repeatdelay=600, repeatinterval=200)
+    move_button12 = tk.Button(move_frame, text="X+", width=7, command=x_plus_Callback)
     move_button12.grid(row=1, column=2, padx=4, pady=2)
-    move_button21 = tk.Button(move_frame, text="Y+", width=7, command=y_plus_Callback,
-                            repeatdelay=600, repeatinterval=200)
+    move_button21 = tk.Button(move_frame, text="Y+", width=7, command=y_plus_Callback)
     move_button21.grid(row=2, column=1, padx=4, pady=2)
-    move_button22 = tk.Button(move_frame, text="Dn", width=7, command=z_minus_Callback,
-                            repeatdelay=600, repeatinterval=200)
+    move_button22 = tk.Button(move_frame, text="Dn", width=7, command=z_minus_Callback)
     move_button22.grid(row=2, column=2, padx=4, pady=2)
 
     # Create jog_step selector frame
-    step_frame = tk.Frame(left_frame, width=200, height=40)
+    step_frame = tk.Frame(left_frame)
     step_frame.grid(row=4, column=0, padx=5, pady=2)
     
     def set_step(val, active_btn):
@@ -728,7 +719,7 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     root_frame.bind("<Unmap>", lambda event: reset_jog_step())
 
     # Create scanner coordinates frame
-    sc_frame = tk.Frame(left_frame, width=200, height=50)
+    sc_frame = tk.Frame(left_frame)
     sc_frame.grid(row=5, column=0, padx=5, pady=2)
     sc_label_x = tk.Label(sc_frame, text="X:{0:7.2f}".format(x_pos), width=7, anchor="w")
     sc_label_x.grid(row=0, column=0, padx=5, pady=2)
@@ -737,9 +728,9 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     sc_label_z = tk.Label(sc_frame, text="Z:{0:7.2f}".format(z_pos), width=7, anchor="w")
     sc_label_z.grid(row=0, column=2, padx=5, pady=2)
 
-    def store_new_origo():
+    def store_new_origin():
         global x_pos, y_pos
-        # This will reset the xy-scanner origo to the current position
+        # This will reset the XY-scanner origin to the current position
         # It is achieved by disconnecting and then reconnecting scanner com port
         scan.close() # Close connection to xy_scanner
         x_pos, y_pos, z_pos = 0.0, 0.0, 0.0
@@ -749,9 +740,9 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
         cfg.scan = scan.init(cfg.scanner_comport) # Init xy_scanner
 
     # Create ready buttons frame
-    ready_frame = tk.Frame(left_frame, width=200, height=50)
+    ready_frame = tk.Frame(left_frame)
     ready_frame.grid(row=6, column=0, padx=5, pady=2)
-    ready_button0 = tk.Button(ready_frame, text="Store new origo", command=store_new_origo)
+    ready_button0 = tk.Button(ready_frame, text="Store new origin", command=store_new_origin)
     ready_button0.grid(row=0, column=0, padx=5, pady=2)
     ready_button1 = tk.Button(ready_frame, text="Save calibration", command=save_calibration)
     ready_button1.grid(row=0, column=1, padx=5, pady=2)
@@ -761,8 +752,8 @@ def calibrate(frame): # This is the main routine of the scan_calibrate module th
     for key_spec in ('<Left>', '<Right>', '<Up>', '<Down>', '<Prior>', '<Next>'):
         top_window.bind(key_spec, handle_key_jog)
 
-if __name__ == '__main__':
-    # Standalone init and enable for manual control
+if __name__ == '__main__': # Standalone init and enable for manual control
+    os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))) # Back up CWD one level in standalone mode
     root = tk.Tk()  # create root window
     root.title("Scanner calibration stand alone test module")  # title of the GUI window
     if(cfg.scanner_comport != ""):

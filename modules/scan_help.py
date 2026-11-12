@@ -117,9 +117,9 @@ def populate_help_content(text, tab_index):
         text.insert(tk.END, "1. Spectrum Analyzer Settings\n", "section")
         text.insert(
             tk.END,
-            "* SA Model: Select driver module matching your spectrum analyzer. This function is not yet\n"
-            "  implemented.\n"
-            "* VISA / GPIB Address: Enter communication string (e.g., GPIB0::18::INSTR or TCPIP::192.168.1.100).\n"
+            "* SA Model: Select driver module matching your spectrum analyzer.\n"
+            "* Spectrum analyzer address: Enter communication address (e.g., GPIB0::18::INSTR or TCPIP::192.168.1.100 or COM4).\n"
+            "  Refresh button refreshes the list of available addresses.\n"
             "* Test Connection: Verifies instrument communication and queries identification string (*IDN?).\n\n",
             "body",
         )
@@ -129,17 +129,16 @@ def populate_help_content(text, tab_index):
             tk.END,
             "* Serial COM Port: Select COM port assigned to motion controller.\n"
             "  Find your COM Port by looking in the Device Manager (Windows Control Panel) by"
-            "  obseving the ports section while inserting the USB cable to the scanner.\n\n",
+            "  observing the ports section while inserting the USB cable to the scanner.\n\n",
             "body",
         )
         text.insert(tk.END, "3. Project setup\n", "section")
         text.insert(
             tk.END,
-            "* A new project can be setup by either copying the settings including background"
-            "  calibration (optional) by\n"
-            "* Open an old .nfs-file. If you want to start from scratch you can enter a new project\n"
-            "  name and press the \n"
-            "* New button.\n\n",
+            "* A new project can be created in two ways:\n"
+            "  - Open an existing .nfs-file. The settings, including the background calibration\n"
+            "    (optional), are copied to the new project.\n"
+            "  - Start from scratch by entering a new project name and pressing the New button.\n\n",
             "body",
         )
 
@@ -161,7 +160,7 @@ def populate_help_content(text, tab_index):
         # IMAGE PLACEHOLDER: Calibration Tab Layout TODO add image
         # insert_image(text, "help_calibrate_overview.png", "Calibration Control Panel")
 
-        text.insert(tk.END, "A. File & Orientation Frame\n", "subsection")
+        text.insert(tk.END, "1. File & Orientation Frame\n", "subsection")
         text.insert(
             tk.END,
             "* File Button: Click to load layout drawing. It will work best with a component placement\n"
@@ -169,23 +168,23 @@ def populate_help_content(text, tab_index):
             "  to be visible.\n"
             "* Rotate Button: Rotates image 90° CCW per click and remaps active marker coordinates.\n"
             "  Use this button to rotate the image in the same way that your board is rotated on the\n"
-            "  scanner table\n\n",
+            "  scanner table.\n\n",
             "body",
         )
 
-        text.insert(tk.END, "B. Calibration Coordinate Points\n", "subsection")
+        text.insert(tk.END, "2. Calibration Coordinate Points\n", "subsection")
         text.insert(
             tk.END,
-            "* The fist two points are required to align the background image pixels with the circuit\n"
+            "* The first two points are required to align the background image pixels with the circuit\n"
             "  board coordinates. Place the first two points preferably in opposite corners.\n"
             "* The secondary two points are optional and can be used to determine the exact position of\n"
             "  an edge or other feature on the board.\n"
             "* Placement of points can be done by clicking left mouse button. Points can be moved by\n"
             "  left clicking close to an already placed point. Points can be removed by right clicking\n"
             "  close to any point.\n"
-            "* Image xy: Pixel coordinates inside drawing.\n"
-            "* Scanner xy: Physical coordinates in mm.\n"
-            "* [Get xy]: Copies current live scanner position into selected row.\n"
+            "* Image XY: Pixel coordinates inside drawing.\n"
+            "* Scanner XY: Physical coordinates in mm.\n"
+            "* [Get XY]: Copies current live scanner position into selected row.\n"
             "* [Go to]: Moves physical scanner head directly to specified mm position.\n\n"
             "  Determining the scanner head position is eased if the field probe is replaced with a\n"
             "  stylus. 3D/Step file for stylus holder is provided in the file package.\n\n",
@@ -193,20 +192,21 @@ def populate_help_content(text, tab_index):
             "body",
         )
 
-        text.insert(tk.END, "C. Manual Motion Controls (Jogging)\n", "subsection")
+        text.insert(tk.END, "3. Manual Motion Controls (Jogging)\n", "subsection")
         text.insert(
             tk.END,
             "* Directional Buttons (X-, X+, Y-, Y+, Up, Dn): Step head along axes.\n"
-            "* Go Origo: Returns scanner head to physical (0, 0) origin.\n"
-            "* Step Selector (0.01, 0.1, 1.0, 10 mm): Sets movement distance per click.\n\n"
+            "  It is also possible to jog by using the arrow buttons and PgUp / PgDn.\n"
+            "* Go Origin: Returns scanner head to physical (0, 0) origin.\n"
+            "* Step Selector (0.01, 0.1, 1.0, 10 mm): Sets jog movement distance per click.\n\n"
             "  The step selector is automatically returned to zero when changing tab for security reasons.\n\n",
             "body",
         )
 
-        text.insert(tk.END, "D. Storage Actions\n", "subsection")
+        text.insert(tk.END, "4. Storage Actions\n", "subsection")
         text.insert(
             tk.END,
-            "* Store New Origo: Resets current position in the scanner as new physical (0,0) reference.\n"
+            "* Store New Origin: Resets current position in the scanner as new physical (0,0) reference.\n"
             "* Save Calibration: Writes parameters to config file and exports image if rotated.\n\n",
             "body",
         )
@@ -214,7 +214,7 @@ def populate_help_content(text, tab_index):
         # IMAGE PLACEHOLDER: Interactive Canvas Controls TODO add image
         # insert_image(text, "help_calibrate_canvas.png", "Canvas Marker Placement")
 
-        text.insert(tk.END, "Right Panel: Interactive Plot Controls\n", "section")
+        text.insert(tk.END, "5. Right Panel: Interactive Plot Controls\n", "section")
         text.insert(
             tk.END,
             "* Left-Click: Add new calibration point or drag existing marker.\n"
@@ -238,13 +238,13 @@ def populate_help_content(text, tab_index):
         text.insert(tk.END, "1. File & Area Setup\n", "section")
         text.insert(
             tk.END,
-            "* Project / Dataset Name: Sets target .nfs output file path. It is recommended to\n"
-            "  add a description here regarding what probe and polarisation was used.\n" 
-            "* X/Y Start & Stop: Define rectangular scanning boundaries (mm). These can be easily\n"
-            "  adjusted with the mouse left button. Either as single clik, Klick and drag edges / corners.\n"
+            "* Project / Dataset Name: Sets initail part of result filename. It is recommended to\n"
+            "  add a description here regarding how DUT was setup and perhaps what probe was used.\n" 
+            "* Start & Stop X/Y: Define rectangular scanning boundaries (mm). These can be easily\n"
+            "  adjusted with the mouse left button. Either as single click, click and drag edges / corners.\n"
             "  Or by clicking a start point and drag to a stop point.\n"
             "* X/Y Step Size: Spatial resolution between measurement points (mm). Remember that the total\n"
-            "  scan time grows with the square of the inversed step size.\n\n",
+            "  scan time grows with the square of the inverse step size.\n\n",
             "body",
         )
 
@@ -252,11 +252,13 @@ def populate_help_content(text, tab_index):
         text.insert(
             tk.END,
             "* Start / Stop Frequency: Measurement band in MHz.\n"
-            "* Sweep Points: Number of bins per trace in one spectrum measurement.\n"
-            "* RBW / Auto RBW: Resolution Bandwidth setting.\n"
-            "* Averages: Trace sweeps per grid point for noise reduction.\n"
+            "* Points: Number of bins per trace in one spectrum measurement.\n"
+            "* Average: Trace sweeps per grid point for noise reduction.\n"
+            "* Sweep time: Time in seconds for one sweep. Increase this to track varying signals.\n"
+            "* RBW / Auto RBW: Resolution Bandwidth setting in Hz (e.g. 3000 = 3 kHz). Auto RBW lets the\n"
+            "  instrument choose the bandwidth.\n"
             "* Peak / Max-Hold Detector: Receiver trace acquisition mode. Use Max-Hold only\n"
-            "  when dealing with a slowly changing intermitent signal generator. This is seldomly needed.\n\n",
+            "  when dealing with a slowly changing intermittent signal generator. This is seldom needed.\n\n",
             "body",
         )
 
@@ -264,9 +266,9 @@ def populate_help_content(text, tab_index):
         text.insert(
             tk.END,
             "* The scan time prediction can estimate at which time the scanning will be ready when\n"
-            "  using the pressent parameters. The prediction is achieved by measuring the time it takes\n"
+            "  using the present parameters. The prediction is achieved by measuring the time it takes\n"
             "  to move one step and measure one point. The test needs to be invoked by the\n"
-            "* Test speed button when ever spectrum analyzer parameters or step size is changed.\n\n",
+            "* Test speed button whenever spectrum analyzer parameters or step size is changed.\n\n",
             "body",
         )
 
@@ -302,9 +304,9 @@ def populate_help_content(text, tab_index):
             "* Dataset 1 (Primary): Opens main scan file (.nfs).\n"
             "* Dataset 2 (Secondary): Opens secondary scan file with orthogonal field (.nfs)\n"
             "  to calculate combined total field magnitude:\n\n"
-            "  Scanning with a near filed probe in both polarisations is often needed since\n"
-            "  a high filed amplitude can be hidden if the field vector is perpendicular to\n"
-            "  the probe in any given measurement point\n\n",
+            "  Scanning with a near field probe in both polarisations is often needed since\n"
+            "  a high field amplitude can be hidden if the field vector is perpendicular to\n"
+            "  the probe in any given measurement point.\n\n",
             "body",
         )
 
@@ -317,13 +319,24 @@ def populate_help_content(text, tab_index):
             "body",
         )
 
-        text.insert(tk.END, "3. Spectrum Plot & Markers\n", "section")
+        text.insert(tk.END, "3. Spectrum Plot & Frequency Markers\n", "section")
         text.insert(
             tk.END,
-            "* Frequency Trace Plot: Shows amplitude vs frequency for all samples or only active spatial markers.\n"
-            "* Frequency Range Sliders: Adjust min/max frequency window to isolate specific emissions.\n"
-            "* Peak Search: Automatically identifies and marks highest field emissions.\n"
-            "* Delta Markers: Measures frequency spacing and amplitude differences between peaks. The distance\n"
-            "between frequency markers is a good indication of the fundamental clock frequency of the agressor.\n\n",
+            "* Frequency Spectrum Plot: Shows amplitude vs frequency for all samples or only active spatial markers.\n"
+            "* Frequency Range Limit Lines: Adjust the thick vertical grey lines in the spectrum plot\n"
+            "  to control the min/max frequency window to isolate specific emissions.\n"
+            "* Peak Select: Automatically identifies and marks highest peak close to mouse click.\n"
+            "* Frequency Markers: Measures frequency and spacing between peaks. The distance between frequency markers\n"
+            "  is a good indication of the fundamental clock frequency of the aggressor.\n"
+            "* Clear all frequency makers: Removes all frequency markers.\n\n",
+            "body",
+        )
+
+        text.insert(tk.END, "4. Image and data control\n", "section")
+        text.insert(
+            tk.END,
+            "* Show colorbar: Shows the emission amplitude scale as a colorbar in the right hand side of the image window.\n"
+            "* Save CSV: Saves the frequency spectrum as a CSV-file.\n"
+            "* Save image: Saves the window content as a screen shot.\n\n",
             "body",
         )
