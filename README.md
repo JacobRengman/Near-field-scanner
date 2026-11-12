@@ -2,6 +2,8 @@
 
 Near field scanner is a tool to determine from where and how much a circuit board is radiating in the RF spectrum. The tool uses a spectrum analyzer + a CNC XY-table to measures and gives a visual image of the RF-emissions from the circuitboard.
 
+![Near-field emission heatmap over a PCB](docs/images/near_field_pcb.png)
+
 ## 🌟 Key Features
 
 - **Hardware Abstraction Layer**: Connects via PyVISA (GPIB/USB/Ethernet) for spectrum analyzers and PySerial (GRBL/G-code) for CNC motion tables.
