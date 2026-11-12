@@ -26,7 +26,7 @@ Near field scanner is a tool to determine from where and how much a circuit boar
 
 ### Hardware Dependencies
 
-1. **Spectrum Analyzer**: Drivers are included for the HP 8591 (GPIB, via PyVISA) and the TinySA (USB serial). Other instruments can be added by writing a driver module in `hardware/spectrum\\\_analyzers/`. Each driver also declares the frequency range and number of points that the instrument supports, and the application limits the scan settings accordingly. See the existing drivers for the functions a driver needs.
+1. **Spectrum Analyzer**: Drivers are included for the HP 8591 (GPIB, via PyVISA) and the TinySA (USB serial). Other instruments can be added by writing a driver module in `hardware/spectrum_analyzers/`. Each driver also declares the frequency range and number of points that the instrument supports, and the application limits the scan settings accordingly. See the existing drivers for the functions a driver needs.
 
 2. **XYZ Motion Table**: CNC router table (e.g., CNC 3018 running GRBL) or custom linear stages accepting serial G-code commands.
 
@@ -39,24 +39,24 @@ Near field scanner is a tool to determine from where and how much a circuit boar
 ```
 Near-field-scanner/        
 │        
-├── near\\\_field\\\_scanner.py      \\\# Main application launcher        
-├── scan\\\_config.py             \\\# Global runtime settings & configuration        
+├── near_field_scanner.py      # Main application launcher        
+├── scan_config.py             # Global runtime settings & configuration        
 │        
-├── modules/                   \\\# GUI pages and application workflows        
-│   ├── scan\\\_setup.py          \\\# Tab 0: Hardware configuration & project management        
-│   ├── scan\\\_calibrate.py      \\\# Tab 1: Image alignment & spatial coordinate calibration        
-│   ├── scan\\\_execute.py        \\\# Tab 2: Scan boundaries, frequency span & execution        
-│   ├── scan\\\_result.py         \\\# Tab 3: Heatmap visualization, markers & analysis        
-│   └── scan\\\_help.py           \\\# F1 Context help manager        
+├── modules/                   # GUI pages and application workflows        
+│   ├── scan_setup.py          # Tab 0: Hardware configuration & project management        
+│   ├── scan_calibrate.py      # Tab 1: Image alignment & spatial coordinate calibration        
+│   ├── scan_execute.py        # Tab 2: Scan boundaries, frequency span & execution        
+│   ├── scan_result.py         # Tab 3: Heatmap visualization, markers & analysis        
+│   └── scan_help.py           # F1 Context help manager        
 │        
-├── hardware/                  \\\# Instrument drivers        
-│   ├── scanners/              \\\# CNC motion table drivers        
-│   ├── mechanics/             \\\# STEP and STL-files for probe holders        
-│   └── spectrum\\\_analyzers/    \\\# HP 8591, tinySA and other spectrum analyzer drivers        
+├── hardware/                  # Instrument drivers        
+│   ├── scanners/              # CNC motion table drivers        
+│   ├── mechanics/             # STEP and STL-files for probe holders        
+│   └── spectrum_analyzers/    # HP 8591, tinySA and other spectrum analyzer drivers        
 │        
-├── assets/                    \\\# Application icons and help graphics        
-├── background\\\_images/         \\\# User PCB photos and reference board images        
-└── results/                   \\\# Saved scan datasets (.nfs) and exported screenshots
+├── assets/                    # Application icons and help graphics        
+├── background_images/         # User PCB photos and reference board images        
+└── results/                   # Saved scan datasets (.nfs) and exported screenshots
 ```
 
 ## 🚀 Getting Started
@@ -88,10 +88,10 @@ pip install matplotlib numpy pillow pyvisa pyserial
 
 ### Running the Application
 
-Launch the complete suite from the root directory of the repository (the application uses relative paths to `assets/`, `background\\\_images/` and `results/`):
+Launch the complete suite from the root directory of the repository (the application uses relative paths to `assets/`, `background_images/` and `results/`):
 
 ```
-python near\\\_field\\\_scanner.py
+python near_field_scanner.py
 ```
 
 ### Running Individual Modules in Standalone Mode
@@ -99,15 +99,15 @@ python near\\\_field\\\_scanner.py
 Each feature module in `modules/` can be executed independently for isolated testing or debugging:
 
 ```
-python modules/scan\\\_setup.py        
-python modules/scan\\\_execute.py
+python modules/scan_setup.py        
+python modules/scan_execute.py
 ```
 
 ## 📖 Recommended Workflow
 
 1. **Scan Setup (Tab 1)**: Select your Spectrum Analyzer VISA address and CNC COM port. Click **Test** to verify communication. Create a new project name or copy settings from an existing `.nfs` project file.
 
-2. **Background Calibration (Tab 2)**: Load a PCB image from `background\\\_images/`. It works best with a screenshot of a component placement drawing but a photo also works. Define optical calibration points on the image and pair them with physical CNC probe locations.
+2. **Background Calibration (Tab 2)**: Load a PCB image from `background_images/`. It works best with a screenshot of a component placement drawing but a photo also works. Define optical calibration points on the image and pair them with physical CNC probe locations.
 
 3. **Execute Scan (Tab 3)**: Define the x,y scan bounds, step size, frequency span (start/stop), and averaging sweeps. Run the automated scan.
 
@@ -115,7 +115,7 @@ python modules/scan\\\_execute.py
 
 ## 🖼️ Example Images, Trademarks & Disclaimer
 
-The example board photograph in `background\\\_images/` (`TinySA\\\_PCB\\\_bot.png`) was taken by the author of a commercially available tinySA spectrum analyzer that the author purchased. It is included only to demonstrate how the software works with a real circuit board and any included heatmap is not a measurement of the TinySA PCB itself.
+The example board photograph in `background_images/` (`TinySA_PCB_bot.png`) was taken by the author of a commercially available tinySA spectrum analyzer that the author purchased. It is included only to demonstrate how the software works with a real circuit board and any included heatmap is not a measurement of the TinySA PCB itself.
 
 - This project is an independent, non-commercial open source project. It is **not affiliated with, authorized by, sponsored by, or endorsed by** the manufacturer or designer of the board shown, or by the owners of any other product or company named in this repository.
 
