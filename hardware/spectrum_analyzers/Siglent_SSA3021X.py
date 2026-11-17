@@ -64,8 +64,8 @@ def measure_spectrum(sweeps=1): # Measure and retrieve the spectrum data from th
 
 def set_span(start, stop): # Setup spectrum analyzer span for measurements, start/stop frequencies in Hz
     if specanalyzer != 0:
-        specanalyzer.write(":FREQuency:STARt " + str(start))
-        specanalyzer.write(":FREQuency:STOP " + str(stop))
+        specanalyzer.write(f":FREQuency:STARt {start:.0f}")
+        specanalyzer.write(f":FREQuency:STOP {stop:.0f}")
     points = get_points()
     step = (stop - start) / (points - 1)
     freq_lst = []
